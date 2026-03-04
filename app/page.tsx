@@ -7,8 +7,9 @@ import Overview from './dashboard/OverviewTab';
 import Companies from './dashboard/companies/page';
 import Riders from './dashboard/riders/page';
 import Deliveries from './dashboard/deliveries/page';
+import Profile from './dashboard/ProfileTab';
 
-type PageType = 'overview' | 'deliveries' | 'riders' | 'companies';
+type PageType = 'overview' | 'deliveries' | 'riders' | 'companies' | 'profile';
 
 interface NavigationItem {
   id: PageType;
@@ -35,6 +36,8 @@ const RiderrDashboard: React.FC = () => {
         return <Riders />;
       case 'companies':
         return <Companies />;
+      case 'profile':
+        return <Profile />;
       default:
         return <Overview />;
     }
@@ -73,7 +76,10 @@ const RiderrDashboard: React.FC = () => {
 
         {/* Bottom Menu */}
         <div className="p-4 space-y-1">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:bg-blue-500 transition-all">
+          <button 
+            onClick={() => setCurrentPage('profile')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:bg-blue-500 transition-all"
+          >
             <User className="w-5 h-5" />
             <span className="font-medium">Profile</span>
           </button>
