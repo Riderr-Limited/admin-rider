@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Users, Search, Plus, MapPin, Star, TrendingUp, Package } from 'lucide-react';
 

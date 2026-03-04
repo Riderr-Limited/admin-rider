@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Package, Search, MapPin, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
 
