@@ -49,7 +49,7 @@ const RiderrDashboard: React.FC = () => {
       <div className="w-64 bg-blue-600 flex flex-col">
         {/* Logo */}
         <div className="p-6">
-          <Image src="/logo.png" alt="RIDERR" width={120} height={40} />
+          <Image src="/logo.png" alt="RIDERR" width={120} height={40} className="rounded-lg" />
         </div>
 
         {/* Navigation */}
