@@ -122,9 +122,12 @@ export default function Overview() {
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Delivery Status Breakdown</h2>
           <div className="flex flex-wrap gap-3">
-            {Object.entries(data.deliveries.byStatus).map(([status, count]: any) => (
+            {(Array.isArray(data.deliveries.byStatus)
+              ? data.deliveries.byStatus.map((item: any) => ({ status: item._id ?? item.status, count: item.count ?? item.total ?? 0 }))
+              : Object.entries(data.deliveries.byStatus).map(([status, count]: any) => ({ status, count: typeof count === 'object' ? (count?.count ?? count?.total ?? 0) : count }))
+            ).map(({ status, count }: any) => (
               <div key={status} className={`px-4 py-2 rounded-xl text-sm font-medium ${statusColor[status] ?? 'bg-gray-100 text-gray-600'}`}>
-                {status.replace(/_/g, ' ')}: <span className="font-bold">{count}</span>
+                {String(status).replace(/_/g, ' ')}: <span className="font-bold">{count}</span>
               </div>
             ))}
           </div>
@@ -154,12 +157,16 @@ export default function Overview() {
             {recentActivities.slice(0, 10).map((activity: any, i: number) => (
               <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{activity.description ?? activity.type}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {typeof (activity.description ?? activity.type) === 'string'
+                      ? (activity.description ?? activity.type)
+                      : JSON.stringify(activity.description ?? activity.type)}
+                  </p>
                   <p className="text-xs text-gray-500">{activity.createdAt ? new Date(activity.createdAt).toLocaleString() : ''}</p>
                 </div>
                 {activity.status && (
                   <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusColor[activity.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {activity.status.replace(/_/g, ' ')}
+                    {String(activity.status).replace(/_/g, ' ')}
                   </span>
                 )}
               </div>
