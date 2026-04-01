@@ -1,27 +1,10 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "../globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Riderr Admin Dashboard",
-  description: "Manage your logistics business",
+  title: 'Riderr Admin Dashboard',
+  description: 'Manage your logistics business',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
-      </body>
-    </html>
-  );
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
