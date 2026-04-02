@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Building2, Users, Package, Search, Eye, CheckCircle, XCircle, ChevronLeft, ChevronRight, CreditCard } from 'lucide-react';
+import { Building2, Users, Package, Search, Eye, CheckCircle, XCircle, ChevronLeft, ChevronRight, CreditCard, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import DeleteModal from '../DeleteModal';
 
 export default function Companies() {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -13,6 +14,8 @@ export default function Companies() {
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
+  const [deleteModal, setDeleteModal] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const limit = 10;
 
   const fetchCompanies = useCallback(async () => {
@@ -55,6 +58,20 @@ export default function Companies() {
       alert(e.message);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async (permanent: boolean) => {
+    if (!deleteModal) return;
+    setDeleteLoading(true);
+    try {
+      await api.deleteCompany(deleteModal._id, permanent);
+      setDeleteModal(null);
+      fetchCompanies();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -197,6 +214,13 @@ export default function Companies() {
                               <CreditCard className="w-4 h-4 text-blue-600" />
                             </button>
                           )}
+                          <button
+                            onClick={() => setDeleteModal(company)}
+                            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Company"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -227,7 +251,6 @@ export default function Companies() {
         </>
       )}
 
-      {/* Company Detail Modal */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
@@ -261,6 +284,19 @@ export default function Companies() {
             </div>
           </div>
         </div>
+      )}
+
+      {deleteModal && (
+        <DeleteModal
+          title="Delete Company"
+          name={deleteModal.name ?? 'this company'}
+          softLabel="Suspend"
+          softDesc="Suspends company, takes all drivers offline, deactivates all users."
+          hardDesc="Removes company, all drivers, and marks all users deleted."
+          loading={deleteLoading}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

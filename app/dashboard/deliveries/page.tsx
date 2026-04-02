@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, Search, MapPin, ChevronLeft, ChevronRight, XCircle, Eye, CheckCircle, Download, UserPlus } from 'lucide-react';
+import { Package, Search, MapPin, ChevronLeft, ChevronRight, XCircle, Eye, CheckCircle, Download, UserPlus, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import DeleteModal from '../DeleteModal';
 
 const STATUS_COLORS: Record<string, string> = {
   delivered: 'bg-green-100 text-green-700',
@@ -24,6 +25,8 @@ export default function Deliveries() {
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [assignDriverId, setAssignDriverId] = useState('');
   const [assignMsg, setAssignMsg] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -47,6 +50,20 @@ export default function Deliveries() {
   }, [page, search, status, vehicleType]);
 
   useEffect(() => { fetchDeliveries(); }, [fetchDeliveries]);
+
+  const handleDelete = async (permanent: boolean, reason?: string) => {
+    if (!deleteModal) return;
+    setDeleteLoading(true);
+    try {
+      await api.deleteDelivery(deleteModal._id, permanent, reason);
+      setDeleteModal(null);
+      fetchDeliveries();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleViewDetails = async (id: string) => {
     try {
@@ -225,7 +242,13 @@ export default function Deliveries() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end pt-4 border-t border-gray-200">
+                  <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => { setDeleteModal(delivery); }}
+                      className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-xl hover:bg-red-50 transition-colors text-sm font-medium"
+                    >
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
                     <button
                       onClick={() => handleViewDetails(delivery._id)}
                       className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors text-sm font-medium"
@@ -335,6 +358,20 @@ export default function Deliveries() {
             </div>
           </div>
         </div>
+      )}
+
+      {deleteModal && (
+        <DeleteModal
+          title="Delete Delivery"
+          name={deleteModal.trackingNumber ?? deleteModal._id}
+          softLabel="Cancel"
+          softDesc="Sets status to cancelled. Notifies customer and driver."
+          hardDesc="Removes delivery permanently. Still notifies customer and driver."
+          requireReason
+          loading={deleteLoading}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Users, Search, Star, TrendingUp, Package, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Search, Star, TrendingUp, Package, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import DeleteModal from '../DeleteModal';
 
 export default function Riders() {
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -13,6 +14,8 @@ export default function Riders() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const limit = 12;
 
   const fetchDrivers = useCallback(async () => {
@@ -33,6 +36,20 @@ export default function Riders() {
   }, [page, search, vehicleType, isOnline]);
 
   useEffect(() => { fetchDrivers(); }, [fetchDrivers]);
+
+  const handleDelete = async (permanent: boolean) => {
+    if (!deleteModal) return;
+    setDeleteLoading(true);
+    try {
+      await api.deleteDriver(deleteModal._id, permanent);
+      setDeleteModal(null);
+      fetchDrivers();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleApprove = async (id: string, approve: boolean) => {
     setActionLoading(id);
@@ -173,8 +190,17 @@ export default function Riders() {
                     </div>
                   )}
                   {driver.isVerified && (
-                    <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
-                      <TrendingUp className="w-4 h-4" /> Active Driver
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+                        <TrendingUp className="w-4 h-4" /> Active Driver
+                      </div>
+                      <button
+                        onClick={() => setDeleteModal(driver)}
+                        className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Driver"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -203,6 +229,19 @@ export default function Riders() {
             </div>
           )}
         </>
+      )}
+
+      {deleteModal && (
+        <DeleteModal
+          title="Delete Driver"
+          name={deleteModal.name ?? 'this driver'}
+          softLabel="Deactivate"
+          softDesc="Driver goes offline, cannot accept deliveries. Linked user deactivated."
+          hardDesc="Removes driver profile permanently. Linked user marked deleted."
+          loading={deleteLoading}
+          onClose={() => setDeleteModal(null)}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

@@ -13,9 +13,10 @@ import Payments from './payments/page';
 import Support from './support/page';
 import Notifications from './notifications/page';
 import Profile from './ProfileTab';
+import Chat from './chat/page';
 import { api } from '@/lib/api';
 
-type PageType = 'overview' | 'users' | 'riders' | 'deliveries' | 'companies' | 'payments' | 'support' | 'notifications' | 'profile';
+type PageType = 'overview' | 'users' | 'riders' | 'deliveries' | 'companies' | 'payments' | 'support' | 'notifications' | 'profile' | 'chat';
 
 const navigation: { id: PageType; name: string; icon: React.ElementType }[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
@@ -26,12 +27,14 @@ const navigation: { id: PageType; name: string; icon: React.ElementType }[] = [
   { id: 'payments', name: 'Payments', icon: DollarSign },
   { id: 'support', name: 'Support', icon: MessageSquare },
   { id: 'notifications', name: 'Notifications', icon: Bell },
+  { id: 'chat', name: 'Chat', icon: MessageSquare },
 ];
 
 export default function RiderrDashboard() {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState<PageType>('overview');
   const [user, setUser] = useState<any>(null);
+  const [chatUnread, setChatUnread] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -47,6 +50,11 @@ export default function RiderrDashboard() {
         return;
       }
       setUser(parsed);
+      // only fetch chat unread after confirming admin role
+      api.getChatUsers().then((res: any) => {
+        const total = (res.data ?? []).reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0);
+        setChatUnread(total);
+      }).catch(() => {});
     }
   }, [router]);
 
@@ -56,21 +64,6 @@ export default function RiderrDashboard() {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     router.replace('/login');
-  };
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'overview': return <Overview />;
-      case 'users': return <UsersPage />;
-      case 'riders': return <Riders />;
-      case 'deliveries': return <Deliveries />;
-      case 'companies': return <Companies />;
-      case 'payments': return <Payments />;
-      case 'support': return <Support />;
-      case 'notifications': return <Notifications />;
-      case 'profile': return <Profile />;
-      default: return <Overview />;
-    }
   };
 
   return (
@@ -88,13 +81,18 @@ export default function RiderrDashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => setCurrentPage(item.id as PageType)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   isActive ? 'bg-blue-500 text-white' : 'text-white hover:bg-blue-500'
                 }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.name}</span>
+                {item.id === 'chat' && chatUnread > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -129,6 +127,17 @@ export default function RiderrDashboard() {
               <Bell className="w-5 h-5 text-gray-600" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </button>
+            <button
+              onClick={() => setCurrentPage('chat')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+            >
+              <MessageSquare className="w-5 h-5 text-gray-600" />
+              {chatUnread > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {chatUnread > 9 ? '9+' : chatUnread}
+                </span>
+              )}
+            </button>
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900">{user?.name ?? 'Admin'}</p>
@@ -142,7 +151,16 @@ export default function RiderrDashboard() {
         </div>
 
         <div className="flex-1 overflow-auto bg-gray-50">
-          {renderPage()}
+          {currentPage === 'overview' && <Overview />}
+          {currentPage === 'users' && <UsersPage />}
+          {currentPage === 'riders' && <Riders />}
+          {currentPage === 'deliveries' && <Deliveries />}
+          {currentPage === 'companies' && <Companies />}
+          {currentPage === 'payments' && <Payments />}
+          {currentPage === 'support' && <Support />}
+          {currentPage === 'notifications' && <Notifications />}
+          {currentPage === 'chat' && <Chat />}
+          {currentPage === 'profile' && <Profile />}
         </div>
       </div>
     </div>

@@ -40,6 +40,8 @@ export default function UsersPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editMsg, setEditMsg] = useState('');
   const [actionMsg, setActionMsg] = useState('');
+  const [deleteModal, setDeleteModal] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -89,15 +91,18 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Soft delete user "${name}"? This can be reversed.`)) return;
+  const handleDelete = async (permanent: boolean) => {
+    setDeleteLoading(true);
     try {
-      await api.deleteUser(id);
-      setActionMsg('User deleted.');
+      await api.deleteUser(deleteModal._id, permanent);
+      setDeleteModal(null);
+      setActionMsg(permanent ? 'User permanently deleted.' : 'User soft deleted.');
       fetchUsers();
       setTimeout(() => setActionMsg(''), 3000);
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -252,7 +257,7 @@ export default function UsersPage() {
                           <button onClick={() => { setResetModal(user); setNewPassword(''); setResetMsg(''); }} className="p-1.5 hover:bg-purple-50 rounded-lg" title="Reset Password">
                             <KeyRound className="w-4 h-4 text-purple-600" />
                           </button>
-                          <button onClick={() => handleDelete(user._id, user.name)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Delete User">
+                          <button onClick={() => setDeleteModal(user)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Delete User">
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
                         </div>
@@ -421,6 +426,42 @@ export default function UsersPage() {
                   {suspendLoading ? 'Processing...' : suspendModal.isActive ? 'Suspend' : 'Restore Access'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Delete User</h2>
+              <button onClick={() => setDeleteModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <XCircle className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">How would you like to delete <span className="font-semibold">{deleteModal.name}</span>?</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleDelete(false)}
+                  disabled={deleteLoading}
+                  className="py-3 px-4 bg-orange-50 border border-orange-200 text-orange-700 font-semibold rounded-xl hover:bg-orange-100 disabled:opacity-60 text-sm"
+                >
+                  <div className="font-bold">Soft Delete</div>
+                  <div className="text-xs font-normal mt-0.5 text-orange-500">Can be reversed</div>
+                </button>
+                <button
+                  onClick={() => handleDelete(true)}
+                  disabled={deleteLoading}
+                  className="py-3 px-4 bg-red-50 border border-red-200 text-red-700 font-semibold rounded-xl hover:bg-red-100 disabled:opacity-60 text-sm"
+                >
+                  <div className="font-bold">Permanent Delete</div>
+                  <div className="text-xs font-normal mt-0.5 text-red-500">Cannot be undone</div>
+                </button>
+              </div>
+              <button onClick={() => setDeleteModal(null)} className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm">Cancel</button>
             </div>
           </div>
         </div>
