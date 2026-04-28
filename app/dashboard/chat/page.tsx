@@ -5,7 +5,7 @@ import { MessageSquare, Send, Search, Circle, Trash2, ChevronUp } from 'lucide-r
 import { io, Socket } from 'socket.io-client';
 import { api } from '@/lib/api';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://riderr-backend.onrender.com';
 
 function avatar(name?: string) {
   return name?.[0]?.toUpperCase() ?? '?';
@@ -31,7 +31,7 @@ const ROLE_COLORS: Record<string, string> = {
 export default function ChatPage() {
   const [inbox, setInbox] = useState<any[]>([]);
   const [inboxLoading, setInboxLoading] = useState(true);
-  const [selected, setSelected] = useState<any | null>(null); // full conversation item
+  const [selected, setSelected] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
@@ -44,10 +44,8 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // keep ref in sync for socket handlers
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
-  // ── Inbox ──────────────────────────────────────────────────────────────────
   const fetchInbox = useCallback(async (q?: string) => {
     try {
       const params: Record<string, string> = { limit: '30' };
@@ -63,13 +61,11 @@ export default function ChatPage() {
 
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
 
-  // debounced search
   useEffect(() => {
     const t = setTimeout(() => fetchInbox(search), 350);
     return () => clearTimeout(t);
   }, [search, fetchInbox]);
 
-  // ── Socket ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
@@ -81,7 +77,6 @@ export default function ChatPage() {
     });
     socketRef.current = socket;
 
-    // new message from a user → update inbox + append if thread is open
     socket.on('new_user_message', ({ data, fromUserId }: any) => {
       fetchInbox();
       if (selectedRef.current?.userId === fromUserId) {
@@ -89,11 +84,9 @@ export default function ChatPage() {
       }
     });
 
-    // confirmation that admin's own sent message was broadcast
     socket.on('receive_message', (msg: any) => {
       if (selectedRef.current?.userId === msg.userId) {
         setMessages(prev => {
-          // avoid duplicate if already added via ack
           if (prev.some(m => m._id === msg._id)) return prev;
           return [...prev, msg];
         });
@@ -101,7 +94,6 @@ export default function ChatPage() {
       fetchInbox();
     });
 
-    // message deleted
     socket.on('message_deleted', ({ messageId }: any) => {
       setMessages(prev => prev.filter(m => m._id !== messageId));
     });
@@ -109,12 +101,10 @@ export default function ChatPage() {
     return () => { socket.disconnect(); };
   }, [fetchInbox]);
 
-  // auto-scroll on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ── Open conversation ──────────────────────────────────────────────────────
   const openConversation = async (item: any) => {
     setSelected(item);
     setLoadingMsgs(true);
@@ -125,7 +115,6 @@ export default function ChatPage() {
       const res = await api.getChatUserMessages(item.userId, 50);
       setMessages(res.data ?? []);
       setHasMore(res.pagination?.hasMore ?? false);
-      // update inbox badge to 0 for this user
       setInbox(prev => prev.map(c => c.userId === item.userId ? { ...c, unreadCount: 0 } : c));
     } catch (e) {
       console.error(e);
@@ -134,7 +123,6 @@ export default function ChatPage() {
     }
   };
 
-  // ── Load older messages ────────────────────────────────────────────────────
   const loadMore = async () => {
     if (!selected || loadingMore || !hasMore || messages.length === 0) return;
     setLoadingMore(true);
@@ -150,7 +138,6 @@ export default function ChatPage() {
     }
   };
 
-  // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || !selected || sending) return;
@@ -170,12 +157,11 @@ export default function ChatPage() {
     );
   };
 
-  // ── Delete message ─────────────────────────────────────────────────────────
   const deleteMessage = async (msgId: string) => {
     try {
       await api.deleteChatMessage(msgId);
       setMessages(prev => prev.filter(m => m._id !== msgId));
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
     }
   };
@@ -188,8 +174,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex" style={{ height: 'calc(100vh - 73px)' }}>
-
-      {/* ── Inbox Sidebar ── */}
+      {/* Inbox Sidebar */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Messages</h2>
@@ -258,7 +243,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* ── Chat Window ── */}
+      {/* Chat Window */}
       <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-3">
@@ -268,7 +253,6 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold">
                 {avatar(selected.user?.name)}
@@ -281,9 +265,6 @@ export default function ChatPage() {
                 <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[selected.user?.role] ?? 'bg-gray-100 text-gray-500'}`}>
                   {selected.user?.role}
                 </span>
-                {selected.user?.phone && (
-                  <span className="text-xs text-gray-500">{selected.user.phone}</span>
-                )}
               </div>
               <div className="ml-auto flex items-center gap-1.5 text-xs text-green-600 flex-shrink-0">
                 <Circle className="w-2 h-2 fill-green-500" />
@@ -291,7 +272,6 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Load more */}
             {hasMore && (
               <div className="flex justify-center pt-3 flex-shrink-0">
                 <button
@@ -305,7 +285,6 @@ export default function ChatPage() {
               </div>
             )}
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
               {loadingMsgs ? (
                 <div className="flex justify-center py-12">
@@ -323,7 +302,7 @@ export default function ChatPage() {
                     <div key={msg._id ?? i} className={`flex group ${isAdmin ? 'justify-end' : 'justify-start'}`}>
                       {!isAdmin && (
                         <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xs mr-2 flex-shrink-0 self-end mb-5">
-                          {avatar(msg.senderId?.name ?? selected.user?.name)}
+                          {avatar(selected.user?.name)}
                         </div>
                       )}
                       <div className={`max-w-[65%] flex flex-col gap-1 ${isAdmin ? 'items-end' : 'items-start'}`}>
@@ -356,7 +335,6 @@ export default function ChatPage() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input */}
             <form onSubmit={sendMessage} className="bg-white border-t border-gray-200 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <input
                 ref={inputRef}

@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = 'https://riderr-backend.onrender.com/api';
 
 function getToken() {
   if (typeof window === 'undefined') return null;
@@ -128,29 +128,28 @@ export const api = {
       body: JSON.stringify({ reason, ...(amount ? { amount } : {}) }),
     }),
 
-  // Support Tickets (correct v1 routes)
+  // Support Tickets
   getSupportTickets: (params?: Record<string, string>) =>
-    request<any>(`/v1/support/tickets${params && Object.keys(params).length ? '?' + new URLSearchParams(params) : ''}`),
-  getSupportTicketById: (ticketId: string) => request<any>(`/v1/support/tickets/${ticketId}`),
-  updateSupportTicket: (ticketId: string, body: object) =>
-    request<any>(`/v1/support/tickets/${ticketId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    request<any>(`/admin/support-tickets?${new URLSearchParams(params)}`),
+  getSupportTicketById: (id: string) => request<any>(`/admin/support-tickets/${id}`),
+  updateSupportTicket: (id: string, body: object) =>
+    request<any>(`/admin/support-tickets/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   getSupportTicketMessages: (ticketId: string) =>
-    request<any>(`/v1/support/tickets/${ticketId}/messages`),
+    request<any>(`/admin/support-tickets/${ticketId}/messages`),
 
-  // Notifications
+  // Notifications (admin inbox)
   getNotifications: (params?: Record<string, string>) =>
-    request<any>(`/notifications${params && Object.keys(params).length ? '?' + new URLSearchParams(params) : ''}`),
-  getUnreadCount: () => request<any>('/notifications/unread-count'),
+    request<any>(`/notifications?${new URLSearchParams(params)}`),
   markNotificationRead: (id: string) =>
     request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
-  markNotificationClicked: (id: string) =>
-    request<any>(`/notifications/${id}/click`, { method: 'PUT' }),
   markAllNotificationsRead: () =>
     request<any>('/notifications/read-all', { method: 'PUT' }),
   deleteNotification: (id: string) =>
     request<any>(`/notifications/${id}`, { method: 'DELETE' }),
   clearReadNotifications: () =>
     request<any>('/notifications/clear-read', { method: 'DELETE' }),
+
+  // Bulk notification sender
   sendBulkNotification: (body: { title: string; message: string; type: string; roles?: string[]; userIds?: string[] }) =>
     request<any>('/admin/notifications/bulk', { method: 'POST', body: JSON.stringify(body) }),
 
@@ -160,22 +159,9 @@ export const api = {
 
   // Admin Chat
   getChatConversations: (params?: Record<string, string>) =>
-    request<any>(`/admin-chat/conversations${params && Object.keys(params).length ? '?' + new URLSearchParams(params) : ''}`),
+    request<any>(`/admin/chat/conversations?${new URLSearchParams(params)}`),
   getChatUserMessages: (userId: string, limit = 50, before?: string) =>
-    request<any>(`/admin-chat/users/${userId}/messages?limit=${limit}${before ? '&before=' + before : ''}`),
-  sendChatMessage: (message: string, userId: string) =>
-    request<any>('/admin-chat/messages', { method: 'POST', body: JSON.stringify({ message, userId, messageType: 'text' }) }),
-  markConversationRead: (userId: string) =>
-    request<any>(`/admin-chat/users/${userId}/mark-read`, { method: 'PUT' }),
+    request<any>(`/admin/chat/messages/${userId}?limit=${limit}${before ? `&before=${before}` : ''}`),
   deleteChatMessage: (messageId: string) =>
-    request<any>(`/admin-chat/messages/${messageId}`, { method: 'DELETE' }),
-  getAdminUnread: () => request<any>('/admin-chat/admin-unread'),
-
-  // Delivery Chat
-  getDeliveryChatMessages: (deliveryId: string, limit = 50) =>
-    request<any>(`/chat/${deliveryId}/messages?limit=${limit}`),
-  sendDeliveryMessage: (deliveryId: string, message: string, messageType = 'text') =>
-    request<any>(`/chat/${deliveryId}/message`, { method: 'POST', body: JSON.stringify({ message, messageType }) }),
-  markDeliveryMessagesRead: (deliveryId: string) =>
-    request<any>(`/chat/${deliveryId}/read`, { method: 'PUT' }),
+    request<any>(`/admin/chat/messages/${messageId}`, { method: 'DELETE' }),
 };

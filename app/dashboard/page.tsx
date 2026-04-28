@@ -50,8 +50,7 @@ export default function RiderrDashboard() {
         return;
       }
       setUser(parsed);
-      // only fetch chat unread after confirming admin role
-      api.getChatUsers().then((res: any) => {
+      api.getChatConversations({ limit: '50' }).then((res: any) => {
         const total = (res.data ?? []).reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0);
         setChatUnread(total);
       }).catch(() => {});
@@ -81,7 +80,7 @@ export default function RiderrDashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id as PageType)}
+                onClick={() => setCurrentPage(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   isActive ? 'bg-blue-500 text-white' : 'text-white hover:bg-blue-500'
                 }`}
@@ -120,17 +119,11 @@ export default function RiderrDashboard() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white border-b border-gray-200 px-8 py-4">
           <div className="flex items-center justify-end gap-4">
-            <button
-              onClick={() => setCurrentPage('notifications')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
-            >
+            <button onClick={() => setCurrentPage('notifications')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
               <Bell className="w-5 h-5 text-gray-600" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </button>
-            <button
-              onClick={() => setCurrentPage('chat')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
-            >
+            <button onClick={() => setCurrentPage('chat')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
               <MessageSquare className="w-5 h-5 text-gray-600" />
               {chatUnread > 0 && (
                 <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
