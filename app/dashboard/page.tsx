@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Package, Users, Building2, LayoutDashboard, User, LogOut, Bell, DollarSign, MessageSquare } from 'lucide-react';
+import { Package, Users, Building2, LayoutDashboard, User, LogOut, Bell, DollarSign, MessageSquare, Handshake } from 'lucide-react';
 import Overview from './OverviewTab';
 import UsersPage from './users/page';
 import Companies from './companies/page';
@@ -12,11 +12,12 @@ import Deliveries from './deliveries/page';
 import Payments from './payments/page';
 import Support from './support/page';
 import Notifications from './notifications/page';
+import Partners from './partners/page';
 import Profile from './ProfileTab';
 import Chat from './chat/page';
 import { api } from '@/lib/api';
 
-type PageType = 'overview' | 'users' | 'riders' | 'deliveries' | 'companies' | 'payments' | 'support' | 'notifications' | 'profile' | 'chat';
+type PageType = 'overview' | 'users' | 'riders' | 'deliveries' | 'companies' | 'partners' | 'payments' | 'support' | 'notifications' | 'profile' | 'chat';
 
 const navigation: { id: PageType; name: string; icon: React.ElementType }[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
@@ -24,6 +25,7 @@ const navigation: { id: PageType; name: string; icon: React.ElementType }[] = [
   { id: 'riders', name: 'Riders', icon: Users },
   { id: 'deliveries', name: 'Deliveries', icon: Package },
   { id: 'companies', name: 'Companies', icon: Building2 },
+  { id: 'partners', name: 'Partners', icon: Handshake },
   { id: 'payments', name: 'Payments', icon: DollarSign },
   { id: 'support', name: 'Support', icon: MessageSquare },
   { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -35,6 +37,7 @@ export default function RiderrDashboard() {
   const [currentPage, setCurrentPage] = useState<PageType>('overview');
   const [user, setUser] = useState<any>(null);
   const [chatUnread, setChatUnread] = useState(0);
+  const [deepLinkDeliveryId, setDeepLinkDeliveryId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -147,11 +150,24 @@ export default function RiderrDashboard() {
           {currentPage === 'overview' && <Overview />}
           {currentPage === 'users' && <UsersPage />}
           {currentPage === 'riders' && <Riders />}
-          {currentPage === 'deliveries' && <Deliveries />}
+          {currentPage === 'deliveries' && (
+            <Deliveries
+              initialDeliveryId={deepLinkDeliveryId}
+              onConsumeInitialDeliveryId={() => setDeepLinkDeliveryId(null)}
+            />
+          )}
           {currentPage === 'companies' && <Companies />}
+          {currentPage === 'partners' && <Partners />}
           {currentPage === 'payments' && <Payments />}
           {currentPage === 'support' && <Support />}
-          {currentPage === 'notifications' && <Notifications />}
+          {currentPage === 'notifications' && (
+            <Notifications
+              onNavigate={(page, meta) => {
+                setCurrentPage(page as PageType);
+                if (meta?.deliveryId) setDeepLinkDeliveryId(meta.deliveryId);
+              }}
+            />
+          )}
           {currentPage === 'chat' && <Chat />}
           {currentPage === 'profile' && <Profile />}
         </div>

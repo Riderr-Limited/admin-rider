@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, Search, MapPin, ChevronLeft, ChevronRight, XCircle, Eye, CheckCircle, Download, UserPlus, Trash2 } from 'lucide-react';
+import { Package, Search, MapPin, ChevronLeft, ChevronRight, XCircle, Eye, CheckCircle, Download, UserPlus, Trash2, Handshake } from 'lucide-react';
 import { api } from '@/lib/api';
 import DeleteModal from '../DeleteModal';
 
@@ -15,12 +15,18 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
-export default function Deliveries() {
+interface DeliveriesProps {
+  initialDeliveryId?: string | null;
+  onConsumeInitialDeliveryId?: () => void;
+}
+
+export default function Deliveries({ initialDeliveryId, onConsumeInitialDeliveryId }: DeliveriesProps = {}) {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [vehicleType, setVehicleType] = useState('');
+  const [source, setSource] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<any | null>(null);
@@ -30,6 +36,9 @@ export default function Deliveries() {
   const [assignDriverId, setAssignDriverId] = useState('');
   const [assignMsg, setAssignMsg] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [manualDriverEntry, setManualDriverEntry] = useState(false);
   const limit = 10;
 
   const fetchDeliveries = useCallback(async () => {
@@ -39,6 +48,7 @@ export default function Deliveries() {
       if (search) params.search = search;
       if (status) params.status = status;
       if (vehicleType) params.vehicleType = vehicleType;
+      if (source) params.source = source;
       const res = await api.getDeliveries(params);
       setDeliveries(res.data?.deliveries ?? res.data ?? []);
       setTotal(res.data?.total ?? res.pagination?.total ?? 0);
@@ -47,9 +57,17 @@ export default function Deliveries() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, status, vehicleType]);
+  }, [page, search, status, vehicleType, source]);
 
   useEffect(() => { fetchDeliveries(); }, [fetchDeliveries]);
+
+  useEffect(() => {
+    if (initialDeliveryId) {
+      handleViewDetails(initialDeliveryId);
+      onConsumeInitialDeliveryId?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDeliveryId]);
 
   const handleDelete = async (permanent: boolean, reason?: string) => {
     if (!deleteModal) return;
@@ -68,9 +86,24 @@ export default function Deliveries() {
   const handleViewDetails = async (id: string) => {
     try {
       const res = await api.getDeliveryById(id);
-      setSelected(res.data ?? res);
+      const delivery = res.data ?? res;
+      setSelected(delivery);
       setAssignDriverId('');
       setAssignMsg('');
+      setManualDriverEntry(false);
+      setAvailableDrivers([]);
+      const companyId = delivery.companyId?._id ?? delivery.companyId;
+      if (companyId && !['delivered', 'cancelled'].includes(delivery.status)) {
+        setLoadingDrivers(true);
+        try {
+          const driversRes = await api.getDrivers({ companyId, isOnline: 'true', isAvailable: 'true' });
+          setAvailableDrivers(driversRes.data?.drivers ?? driversRes.data ?? []);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoadingDrivers(false);
+        }
+      }
     } catch (e: any) {
       alert(e.message);
     }
@@ -89,12 +122,13 @@ export default function Deliveries() {
     }
   };
 
-  const handleAssignDriver = async (deliveryId: string) => {
-    if (!assignDriverId.trim()) { setAssignMsg('Enter a driver ID'); return; }
+  const handleAssignDriver = async (deliveryId: string, driverId?: string) => {
+    const idToAssign = (driverId ?? assignDriverId).trim();
+    if (!idToAssign) { setAssignMsg('Enter a driver ID'); return; }
     setActionLoading(true);
     setAssignMsg('');
     try {
-      await api.assignDriver(deliveryId, assignDriverId.trim());
+      await api.assignDriver(deliveryId, idToAssign);
       setAssignMsg('Driver assigned successfully!');
       setAssignDriverId('');
       fetchDeliveries();
@@ -161,6 +195,11 @@ export default function Deliveries() {
             <option value="van">Van</option>
             <option value="truck">Truck</option>
           </select>
+          <select value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
+            <option value="">All Sources</option>
+            <option value="app">App</option>
+            <option value="partner_api">Partner API</option>
+          </select>
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -193,7 +232,14 @@ export default function Deliveries() {
                         <Package className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{delivery.trackingNumber ?? delivery._id}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-gray-900">{delivery.trackingNumber ?? delivery._id}</h3>
+                          {delivery.source === 'partner_api' && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700">
+                              <Handshake className="w-3 h-3" /> {delivery.partnerId?.businessName ?? 'Partner'}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{delivery.createdAt ? new Date(delivery.createdAt).toLocaleString() : ''}</p>
                       </div>
                     </div>
@@ -296,6 +342,15 @@ export default function Deliveries() {
               <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="capitalize">{selected.vehicleType ?? '—'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Customer</span><span>{selected.customer?.name ?? '—'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Driver</span><span>{selected.driver?.name ?? 'Unassigned'}</span></div>
+              {selected.source === 'partner_api' && (
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                  <span className="text-gray-500 flex items-center gap-1.5"><Handshake className="w-4 h-4 text-cyan-600" /> Partner</span>
+                  <span className="font-medium">{selected.partnerId?.businessName ?? '—'}</span>
+                </div>
+              )}
+              {selected.partnerOrderRef && (
+                <div className="flex justify-between"><span className="text-gray-500">Partner Order Ref</span><span className="font-mono text-xs">{selected.partnerOrderRef}</span></div>
+              )}
               <div className="pt-2 border-t border-gray-100">
                 <p className="text-gray-500 mb-1">Pickup</p>
                 <p className="font-medium">{selected.pickup?.address ?? '—'}</p>
@@ -308,25 +363,62 @@ export default function Deliveries() {
               {/* Assign Driver */}
               {!['delivered', 'cancelled'].includes(selected.status) && (
                 <div className="pt-4 border-t border-gray-100">
-                  <p className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <UserPlus className="w-4 h-4" /> Assign Driver
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={assignDriverId}
-                      onChange={(e) => setAssignDriverId(e.target.value)}
-                      placeholder="Driver Object ID"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 font-mono"
-                    />
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-semibold text-gray-700 flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" /> Assign Driver
+                    </p>
                     <button
-                      onClick={() => handleAssignDriver(selected._id)}
-                      disabled={actionLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
+                      onClick={() => { setManualDriverEntry(v => !v); setAssignDriverId(''); }}
+                      className="text-xs text-blue-600 hover:underline font-medium"
                     >
-                      Assign
+                      {manualDriverEntry ? 'Pick from list' : 'Enter ID manually'}
                     </button>
                   </div>
+
+                  {manualDriverEntry ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={assignDriverId}
+                        onChange={(e) => setAssignDriverId(e.target.value)}
+                        placeholder="Driver Object ID"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 font-mono"
+                      />
+                      <button
+                        onClick={() => handleAssignDriver(selected._id)}
+                        disabled={actionLoading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ) : loadingDrivers ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : availableDrivers.length === 0 ? (
+                    <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                      No online, available drivers found for this delivery's company right now. Try again shortly, or enter a driver ID manually.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableDrivers.map((driver: any) => (
+                        <div key={driver._id} className="flex items-center justify-between gap-3 px-4 py-2.5 border border-gray-200 rounded-xl">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{driver.userId?.name ?? 'Unnamed driver'}</p>
+                            <p className="text-xs text-gray-500 capitalize">{driver.vehicleType ?? '—'} · ★ {driver.rating ?? '—'}</p>
+                          </div>
+                          <button
+                            onClick={() => handleAssignDriver(selected._id, driver._id)}
+                            disabled={actionLoading}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium disabled:opacity-60"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {assignMsg && (
                     <p className={`mt-2 text-xs ${assignMsg.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{assignMsg}</p>
                   )}

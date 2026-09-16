@@ -16,7 +16,21 @@ const TYPE_COLORS: Record<string, string> = {
   support: 'bg-yellow-100 text-yellow-700',
   announcement: 'bg-indigo-100 text-indigo-700',
   order: 'bg-teal-100 text-teal-700',
+  partner: 'bg-cyan-100 text-cyan-700',
 };
+
+// Maps a notification's actionUrl (e.g. "/admin/deliveries/123") to an in-app dashboard tab.
+function actionUrlToPage(actionUrl?: string): string | null {
+  if (!actionUrl) return null;
+  if (actionUrl.includes('/partners')) return 'partners';
+  if (actionUrl.includes('/deliveries')) return 'deliveries';
+  if (actionUrl.includes('/companies')) return 'companies';
+  if (actionUrl.includes('/payments')) return 'payments';
+  if (actionUrl.includes('/support')) return 'support';
+  if (actionUrl.includes('/users')) return 'users';
+  if (actionUrl.includes('/riders')) return 'riders';
+  return null;
+}
 
 const PRIORITY_DOT: Record<string, string> = {
   low: 'bg-gray-400',
@@ -27,10 +41,12 @@ const PRIORITY_DOT: Record<string, string> = {
 
 const NOTIF_TYPES = [
   'announcement', 'system', 'delivery', 'payment',
-  'security', 'promotion', 'order', 'support', 'driver', 'company',
+  'security', 'promotion', 'order', 'support', 'driver', 'company', 'partner',
 ];
 
-export default function NotificationsPage() {
+interface NavigateMeta { deliveryId?: string }
+
+export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: string, meta?: NavigateMeta) => void }) {
   // ── Inbox state ────────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,10 +243,17 @@ export default function NotificationsPage() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {notifications.map(n => (
+                {notifications.map(n => {
+                  const targetPage = actionUrlToPage(n.actionUrl);
+                  const handleRowClick = () => {
+                    if (!n.read) markRead(n._id);
+                    if (targetPage && onNavigate) onNavigate(targetPage, { deliveryId: n.data?.deliveryId });
+                  };
+                  return (
                   <div
                     key={n._id}
-                    className={`flex items-start gap-3 px-5 py-4 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/40' : ''}`}
+                    onClick={targetPage ? handleRowClick : undefined}
+                    className={`flex items-start gap-3 px-5 py-4 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/40' : ''} ${targetPage ? 'cursor-pointer' : ''}`}
                   >
                     {/* Unread dot */}
                     <div className="flex-shrink-0 mt-1.5">
@@ -266,7 +289,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {!n.read && (
                         <button
-                          onClick={() => markRead(n._id)}
+                          onClick={(e) => { e.stopPropagation(); markRead(n._id); }}
                           disabled={actionLoading === n._id}
                           title="Mark as read"
                           className="p-1.5 text-blue-500 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
@@ -275,7 +298,7 @@ export default function NotificationsPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => deleteOne(n._id)}
+                        onClick={(e) => { e.stopPropagation(); deleteOne(n._id); }}
                         disabled={actionLoading === n._id + '_del'}
                         title="Delete"
                         className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
@@ -284,7 +307,8 @@ export default function NotificationsPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

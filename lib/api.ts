@@ -157,6 +157,19 @@ export const api = {
   exportData: (dataType: string, params?: Record<string, string>) =>
     request<any>(`/admin/export/${dataType}?${new URLSearchParams(params)}`),
 
+  // Partners
+  getPartners: (params?: Record<string, string>) =>
+    request<any>(`/admin/partners?${new URLSearchParams(params)}`),
+  getPartnerById: (id: string) => request<any>(`/admin/partners/${id}`),
+  createPartner: (body: object) =>
+    request<any>('/admin/partners', { method: 'POST', body: JSON.stringify(body) }),
+  suspendPartner: (id: string) =>
+    request<any>(`/admin/partners/${id}/suspend`, { method: 'PATCH' }),
+  activatePartner: (id: string) =>
+    request<any>(`/admin/partners/${id}/activate`, { method: 'PATCH' }),
+  regeneratePartnerSecret: (id: string) =>
+    request<any>(`/admin/partners/${id}/regenerate-secret`, { method: 'POST' }),
+
   // Admin Chat
   getChatConversations: (params?: Record<string, string>) =>
     request<any>(`/admin/chat/conversations?${new URLSearchParams(params)}`),
