@@ -15,6 +15,14 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700',
 };
 
+const DRIVER_STATUS_COLORS: Record<string, string> = {
+  available: 'bg-green-100 text-green-700',
+  online: 'bg-blue-100 text-blue-700',
+  busy: 'bg-orange-100 text-orange-700',
+  offline: 'bg-gray-100 text-gray-600',
+  suspended: 'bg-red-100 text-red-700',
+};
+
 interface DeliveriesProps {
   initialDeliveryId?: string | null;
   onConsumeInitialDeliveryId?: () => void;
@@ -39,6 +47,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [manualDriverEntry, setManualDriverEntry] = useState(false);
+  const [driverSearch, setDriverSearch] = useState('');
   const limit = 10;
 
   const fetchDeliveries = useCallback(async () => {
@@ -83,6 +92,21 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
     }
   };
 
+  const fetchAssignableDrivers = useCallback(async (companyId?: string, searchTerm?: string) => {
+    setLoadingDrivers(true);
+    try {
+      const params: Record<string, string> = {};
+      if (companyId) params.companyId = companyId;
+      if (searchTerm) params.search = searchTerm;
+      const driversRes = await api.getDriversForAssignment(params);
+      setAvailableDrivers(driversRes.data ?? []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingDrivers(false);
+    }
+  }, []);
+
   const handleViewDetails = async (id: string) => {
     try {
       const res = await api.getDeliveryById(id);
@@ -91,23 +115,25 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
       setAssignDriverId('');
       setAssignMsg('');
       setManualDriverEntry(false);
+      setDriverSearch('');
       setAvailableDrivers([]);
-      const companyId = delivery.companyId?._id ?? delivery.companyId;
-      if (companyId && !['delivered', 'cancelled'].includes(delivery.status)) {
-        setLoadingDrivers(true);
-        try {
-          const driversRes = await api.getDrivers({ companyId, isOnline: 'true', isAvailable: 'true' });
-          setAvailableDrivers(driversRes.data?.drivers ?? driversRes.data ?? []);
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setLoadingDrivers(false);
-        }
+      if (!['delivered', 'cancelled'].includes(delivery.status)) {
+        const companyId = delivery.companyId?._id ?? delivery.companyId;
+        fetchAssignableDrivers(companyId);
       }
     } catch (e: any) {
       alert(e.message);
     }
   };
+
+  // Debounce driver-picker search so we don't hit the endpoint on every keystroke.
+  useEffect(() => {
+    if (!selected || manualDriverEntry || ['delivered', 'cancelled'].includes(selected.status)) return;
+    const companyId = selected.companyId?._id ?? selected.companyId;
+    const t = setTimeout(() => fetchAssignableDrivers(companyId, driverSearch), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverSearch]);
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     setActionLoading(true);
@@ -400,31 +426,48 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                         Assign
                       </button>
                     </div>
-                  ) : loadingDrivers ? (
-                    <div className="flex justify-center py-4">
-                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : availableDrivers.length === 0 ? (
-                    <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-                      No online, available drivers found for this delivery's company right now. Try again shortly, or enter a driver ID manually.
-                    </p>
                   ) : (
-                    <div className="space-y-2">
-                      {availableDrivers.map((driver: any) => (
-                        <div key={driver._id} className="flex items-center justify-between gap-3 px-4 py-2.5 border border-gray-200 rounded-xl">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{driver.userId?.name ?? 'Unnamed driver'}</p>
-                            <p className="text-xs text-gray-500 capitalize">{driver.vehicleType ?? '—'} · ★ {driver.rating ?? '—'}</p>
-                          </div>
-                          <button
-                            onClick={() => handleAssignDriver(selected._id, driver._id)}
-                            disabled={actionLoading}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium disabled:opacity-60"
-                          >
-                            Assign
-                          </button>
+                    <div>
+                      <input
+                        type="text"
+                        value={driverSearch}
+                        onChange={(e) => setDriverSearch(e.target.value)}
+                        placeholder="Search driver by name or phone..."
+                        className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+                      />
+                      {loadingDrivers ? (
+                        <div className="flex justify-center py-4">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                         </div>
-                      ))}
+                      ) : availableDrivers.length === 0 ? (
+                        <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                          No drivers found. Try a different search, or enter a driver ID manually.
+                        </p>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {availableDrivers.map((driver: any) => (
+                            <div key={driver._id} className="flex items-center justify-between gap-3 px-4 py-2.5 border border-gray-200 rounded-xl">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-medium text-gray-900">{driver.name ?? 'Unnamed driver'}</p>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${DRIVER_STATUS_COLORS[driver.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    {driver.status}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 capitalize">{driver.phone} · {driver.vehicleType ?? '—'} · {driver.company ?? '—'}</p>
+                              </div>
+                              <button
+                                onClick={() => handleAssignDriver(selected._id, driver._id)}
+                                disabled={actionLoading || driver.status === 'suspended'}
+                                title={driver.status === 'suspended' ? 'Cannot assign a suspended driver' : undefined}
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                              >
+                                Assign
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   {assignMsg && (

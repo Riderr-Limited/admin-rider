@@ -87,6 +87,8 @@ export const api = {
   getDrivers: (params?: Record<string, string>) =>
     request<any>(`/admin/drivers?${new URLSearchParams(params)}`),
   getDriverById: (id: string) => request<any>(`/admin/drivers/${id}`),
+  getDriversForAssignment: (params?: Record<string, string>) =>
+    request<any>(`/admin/drivers/for-assignment?${new URLSearchParams(params)}`),
   updateDriver: (id: string, body: object) =>
     request<any>(`/admin/drivers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   approveDriver: (id: string, approve: boolean, reason?: string) =>
