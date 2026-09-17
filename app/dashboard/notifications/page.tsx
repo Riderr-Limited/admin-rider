@@ -32,6 +32,15 @@ function actionUrlToPage(actionUrl?: string): string | null {
   return null;
 }
 
+// Delivery alerts (new_delivery, no_drivers_available, unassigned_delivery) carry
+// data.deliveryId but no actionUrl — route those straight to the Deliveries tab.
+function resolveNavigation(n: any): { page: string; deliveryId?: string } | null {
+  const viaActionUrl = actionUrlToPage(n.actionUrl);
+  if (viaActionUrl) return { page: viaActionUrl, deliveryId: n.data?.deliveryId };
+  if (n.type === 'delivery' && n.data?.deliveryId) return { page: 'deliveries', deliveryId: n.data.deliveryId };
+  return null;
+}
+
 const PRIORITY_DOT: Record<string, string> = {
   low: 'bg-gray-400',
   medium: 'bg-blue-500',
@@ -46,7 +55,7 @@ const NOTIF_TYPES = [
 
 interface NavigateMeta { deliveryId?: string }
 
-export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: string, meta?: NavigateMeta) => void }) {
+export default function NotificationsPage({ onNavigate, onUnreadCountChange }: { onNavigate?: (page: string, meta?: NavigateMeta) => void; onUnreadCountChange?: (count: number) => void }) {
   // ── Inbox state ────────────────────────────────────────────────────────────
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,8 +65,15 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
   const [total, setTotal] = useState(0);
   const [filterUnread, setFilterUnread] = useState(false);
   const [filterType, setFilterType] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const limit = 15;
+
+  const updateUnreadCount = useCallback((count: number) => {
+    setUnreadCount(count);
+    onUnreadCountChange?.(count);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Bulk sender state ──────────────────────────────────────────────────────
   const [form, setForm] = useState({ title: '', message: '', type: 'announcement', target: 'all' });
@@ -73,19 +89,29 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
       const params: Record<string, string> = { page: String(page), limit: String(limit) };
       if (filterUnread) params.unreadOnly = 'true';
       if (filterType) params.type = filterType;
+      if (filterPriority) params.priority = filterPriority;
       const res = await api.getNotifications(params);
-      setNotifications(res.data ?? []);
-      setTotal(res.pagination?.total ?? 0);
-      setTotalPages(res.pagination?.pages ?? 1);
-      setUnreadCount(res.pagination?.unreadCount ?? 0);
+      const list = res.data?.notifications ?? res.data ?? [];
+      const pagination = res.data?.pagination ?? res.pagination ?? {};
+      setNotifications(list);
+      setTotal(pagination.total ?? 0);
+      setTotalPages(pagination.pages ?? 1);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [page, filterUnread, filterType]);
+  }, [page, filterUnread, filterType, filterPriority]);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await api.getUnreadNotificationCount();
+      updateUnreadCount(res.data?.count ?? 0);
+    } catch (e) { console.error(e); }
+  }, [updateUnreadCount]);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+  useEffect(() => { fetchUnreadCount(); }, [fetchUnreadCount]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const markRead = async (id: string) => {
@@ -93,7 +119,7 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
     try {
       await api.markNotificationRead(id);
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
-      setUnreadCount(c => Math.max(0, c - 1));
+      updateUnreadCount(Math.max(0, unreadCount - 1));
     } catch (e) { console.error(e); }
     finally { setActionLoading(null); }
   };
@@ -113,7 +139,7 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
     try {
       await api.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
+      updateUnreadCount(0);
     } catch (e) { console.error(e); }
     finally { setActionLoading(null); }
   };
@@ -200,6 +226,19 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
                 {NOTIF_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
 
+              {/* Priority filter */}
+              <select
+                value={filterPriority}
+                onChange={e => { setFilterPriority(e.target.value); setPage(1); }}
+                className="px-3 py-1.5 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+
               {/* Mark all read */}
               <button
                 onClick={markAllRead}
@@ -244,16 +283,16 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
             ) : (
               <div className="divide-y divide-gray-100">
                 {notifications.map(n => {
-                  const targetPage = actionUrlToPage(n.actionUrl);
+                  const nav = resolveNavigation(n);
                   const handleRowClick = () => {
                     if (!n.read) markRead(n._id);
-                    if (targetPage && onNavigate) onNavigate(targetPage, { deliveryId: n.data?.deliveryId });
+                    if (nav && onNavigate) onNavigate(nav.page, { deliveryId: nav.deliveryId });
                   };
                   return (
                   <div
                     key={n._id}
-                    onClick={targetPage ? handleRowClick : undefined}
-                    className={`flex items-start gap-3 px-5 py-4 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/40' : ''} ${targetPage ? 'cursor-pointer' : ''}`}
+                    onClick={nav ? handleRowClick : undefined}
+                    className={`flex items-start gap-3 px-5 py-4 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/40' : ''} ${nav ? 'cursor-pointer' : ''}`}
                   >
                     {/* Unread dot */}
                     <div className="flex-shrink-0 mt-1.5">
@@ -279,8 +318,8 @@ export default function NotificationsPage({ onNavigate }: { onNavigate?: (page: 
                             {n.priority}
                           </span>
                         )}
-                        {n.subType && (
-                          <span className="text-xs text-gray-400">{n.subType.replace(/_/g, ' ')}</span>
+                        {(n.subType || n.data?.type) && (
+                          <span className="text-xs text-gray-400">{(n.subType ?? n.data.type).replace(/_/g, ' ')}</span>
                         )}
                       </div>
                     </div>

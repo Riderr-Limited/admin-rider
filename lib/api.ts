@@ -140,6 +140,7 @@ export const api = {
   // Notifications (admin inbox)
   getNotifications: (params?: Record<string, string>) =>
     request<any>(`/notifications?${new URLSearchParams(params)}`),
+  getUnreadNotificationCount: () => request<any>('/notifications/unread-count'),
   markNotificationRead: (id: string) =>
     request<any>(`/notifications/${id}/read`, { method: 'PUT' }),
   markAllNotificationsRead: () =>

@@ -233,7 +233,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{delivery.trackingNumber ?? delivery._id}</h3>
+                          <h3 className="font-semibold text-gray-900">{delivery.trackingNumber ?? delivery.referenceId ?? delivery._id}</h3>
                           {delivery.source === 'partner_api' && (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700">
                               <Handshake className="w-3 h-3" /> {delivery.partnerId?.businessName ?? 'Partner'}
@@ -326,7 +326,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">{selected.trackingNumber ?? selected._id}</h2>
+              <h2 className="text-lg font-bold text-gray-900">{selected.trackingNumber ?? selected.referenceId ?? selected._id}</h2>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <XCircle className="w-5 h-5 text-gray-500" />
               </button>
@@ -338,10 +338,18 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                   {selected.status?.replace(/_/g, ' ')}
                 </span>
               </div>
-              <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold">₦{Number(selected.price ?? 0).toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="capitalize">{selected.vehicleType ?? '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Customer</span><span>{selected.customer?.name ?? '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Driver</span><span>{selected.driver?.name ?? 'Unassigned'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold">{selected.fare?.currency === 'NGN' || !selected.fare?.currency ? '₦' : selected.fare.currency + ' '}{Number(selected.price ?? selected.fare?.totalFare ?? 0).toLocaleString()}</span></div>
+              {selected.vehicleType && (
+                <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="capitalize">{selected.vehicleType}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-gray-500">Customer</span><span>{selected.customer?.name ?? selected.customerName ?? '—'}</span></div>
+              {selected.customerPhone && (
+                <div className="flex justify-between"><span className="text-gray-500">Customer Phone</span><span>{selected.customerPhone}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-gray-500">Driver</span><span>{selected.driver?.name ?? (selected.driverId ? 'Assigned' : 'Unassigned')}</span></div>
+              {selected.payment && (
+                <div className="flex justify-between"><span className="text-gray-500">Payment</span><span className="capitalize">{selected.payment.method} · {selected.payment.status}</span></div>
+              )}
               {selected.source === 'partner_api' && (
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                   <span className="text-gray-500 flex items-center gap-1.5"><Handshake className="w-4 h-4 text-cyan-600" /> Partner</span>

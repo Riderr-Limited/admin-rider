@@ -37,6 +37,7 @@ export default function RiderrDashboard() {
   const [currentPage, setCurrentPage] = useState<PageType>('overview');
   const [user, setUser] = useState<any>(null);
   const [chatUnread, setChatUnread] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [deepLinkDeliveryId, setDeepLinkDeliveryId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +57,9 @@ export default function RiderrDashboard() {
       api.getChatConversations({ limit: '50' }).then((res: any) => {
         const total = (res.data ?? []).reduce((sum: number, item: any) => sum + (item.unreadCount ?? 0), 0);
         setChatUnread(total);
+      }).catch(() => {});
+      api.getUnreadNotificationCount().then((res: any) => {
+        setNotifUnread(res.data?.count ?? 0);
       }).catch(() => {});
     }
   }, [router]);
@@ -95,6 +99,11 @@ export default function RiderrDashboard() {
                     {chatUnread > 99 ? '99+' : chatUnread}
                   </span>
                 )}
+                {item.id === 'notifications' && notifUnread > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                    {notifUnread > 99 ? '99+' : notifUnread}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -124,7 +133,11 @@ export default function RiderrDashboard() {
           <div className="flex items-center justify-end gap-4">
             <button onClick={() => setCurrentPage('notifications')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
               <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+              {notifUnread > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {notifUnread > 9 ? '9+' : notifUnread}
+                </span>
+              )}
             </button>
             <button onClick={() => setCurrentPage('chat')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
               <MessageSquare className="w-5 h-5 text-gray-600" />
@@ -166,6 +179,7 @@ export default function RiderrDashboard() {
                 setCurrentPage(page as PageType);
                 if (meta?.deliveryId) setDeepLinkDeliveryId(meta.deliveryId);
               }}
+              onUnreadCountChange={setNotifUnread}
             />
           )}
           {currentPage === 'chat' && <Chat />}
