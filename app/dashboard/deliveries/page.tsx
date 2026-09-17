@@ -7,10 +7,8 @@ import DeleteModal from '../DeleteModal';
 
 const STATUS_COLORS: Record<string, string> = {
   delivered: 'bg-green-100 text-green-700',
-  in_transit: 'bg-blue-100 text-blue-700',
   picked_up: 'bg-indigo-100 text-indigo-700',
-  driver_assigned: 'bg-purple-100 text-purple-700',
-  pending_driver: 'bg-yellow-100 text-yellow-700',
+  assigned: 'bg-purple-100 text-purple-700',
   created: 'bg-gray-100 text-gray-700',
   cancelled: 'bg-red-100 text-red-700',
 };
@@ -22,6 +20,28 @@ const DRIVER_STATUS_COLORS: Record<string, string> = {
   offline: 'bg-gray-100 text-gray-600',
   suspended: 'bg-red-100 text-red-700',
 };
+
+const DRIVER_STATUS_LABELS: Record<string, string> = {
+  available: 'Available',
+  online: 'Online (unavailable)',
+  busy: 'On a delivery',
+  offline: 'Offline',
+  suspended: 'Suspended',
+};
+
+// Different endpoints/response versions have shown customer/driver info under
+// different keys (populated object, flat name field, or a bare id) — check them all.
+function getCustomerName(d: any): string {
+  return d.customer?.name ?? d.customerName ?? '—';
+}
+
+function getDriverName(d: any): string {
+  if (d.driver?.name) return d.driver.name;
+  if (d.driverName) return d.driverName;
+  if (d.driverId && typeof d.driverId === 'object' && d.driverId.name) return d.driverId.name;
+  if (d.driverId) return 'Assigned';
+  return 'Unassigned';
+}
 
 interface DeliveriesProps {
   initialDeliveryId?: string | null;
@@ -110,14 +130,22 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   const handleViewDetails = async (id: string) => {
     try {
       const res = await api.getDeliveryById(id);
-      const delivery = res.data ?? res;
-      setSelected(delivery);
+      const payload = res.data ?? res;
+      // Some responses nest the delivery under a `delivery` key alongside
+      // sibling payment/chatHistory/voiceCalls data rather than spreading it flat.
+      const delivery = payload.delivery ?? payload;
+      if (!delivery?._id) {
+        alert('Could not load this delivery — the response was missing an id.');
+        return;
+      }
+      setSelected({ ...delivery, payment: delivery.payment ?? payload.payment });
       setAssignDriverId('');
       setAssignMsg('');
       setManualDriverEntry(false);
       setDriverSearch('');
       setAvailableDrivers([]);
-      if (!['delivered', 'cancelled'].includes(delivery.status)) {
+      const hasDriver = !!(delivery.driverId || delivery.driver);
+      if (!hasDriver && !['delivered', 'cancelled'].includes(delivery.status)) {
         const companyId = delivery.companyId?._id ?? delivery.companyId;
         fetchAssignableDrivers(companyId);
       }
@@ -129,6 +157,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   // Debounce driver-picker search so we don't hit the endpoint on every keystroke.
   useEffect(() => {
     if (!selected || manualDriverEntry || ['delivered', 'cancelled'].includes(selected.status)) return;
+    if (selected.driverId || selected.driver) return;
     const companyId = selected.companyId?._id ?? selected.companyId;
     const t = setTimeout(() => fetchAssignableDrivers(companyId, driverSearch), 300);
     return () => clearTimeout(t);
@@ -149,13 +178,15 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   };
 
   const handleAssignDriver = async (deliveryId: string, driverId?: string) => {
+    if (!deliveryId) { setAssignMsg('No delivery selected — close and reopen this delivery, then try again.'); return; }
     const idToAssign = (driverId ?? assignDriverId).trim();
     if (!idToAssign) { setAssignMsg('Enter a driver ID'); return; }
     setActionLoading(true);
     setAssignMsg('');
     try {
-      await api.assignDriver(deliveryId, idToAssign);
-      setAssignMsg('Driver assigned successfully!');
+      const res = await api.assignDriver(deliveryId, idToAssign);
+      const driverName = res.data?.driver?.name;
+      setAssignMsg(driverName ? `${driverName} assigned successfully!` : 'Driver assigned successfully!');
       setAssignDriverId('');
       fetchDeliveries();
       setTimeout(() => { setSelected(null); setAssignMsg(''); }, 1500);
@@ -210,7 +241,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
           </div>
           <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
             <option value="">All Status</option>
-            {['created', 'pending_driver', 'driver_assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'].map(s => (
+            {['created', 'assigned', 'picked_up', 'delivered', 'cancelled'].map(s => (
               <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
             ))}
           </select>
@@ -299,11 +330,11 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-xs text-gray-500">Customer</p>
-                        <p className="font-medium text-gray-900">{delivery.customer?.name ?? '—'}</p>
+                        <p className="font-medium text-gray-900">{getCustomerName(delivery)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Driver</p>
-                        <p className="font-medium text-gray-900">{delivery.driver?.name ?? 'Unassigned'}</p>
+                        <p className="font-medium text-gray-900">{getDriverName(delivery)}</p>
                       </div>
                       {delivery.vehicleType && (
                         <div>
@@ -368,11 +399,11 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
               {selected.vehicleType && (
                 <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="capitalize">{selected.vehicleType}</span></div>
               )}
-              <div className="flex justify-between"><span className="text-gray-500">Customer</span><span>{selected.customer?.name ?? selected.customerName ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Customer</span><span>{getCustomerName(selected)}</span></div>
               {selected.customerPhone && (
                 <div className="flex justify-between"><span className="text-gray-500">Customer Phone</span><span>{selected.customerPhone}</span></div>
               )}
-              <div className="flex justify-between"><span className="text-gray-500">Driver</span><span>{selected.driver?.name ?? (selected.driverId ? 'Assigned' : 'Unassigned')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Driver</span><span>{getDriverName(selected)}</span></div>
               {selected.payment && (
                 <div className="flex justify-between"><span className="text-gray-500">Payment</span><span className="capitalize">{selected.payment.method} · {selected.payment.status}</span></div>
               )}
@@ -394,8 +425,8 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                 <p className="font-medium">{selected.dropoff?.address ?? '—'}</p>
               </div>
 
-              {/* Assign Driver */}
-              {!['delivered', 'cancelled'].includes(selected.status) && (
+              {/* Assign Driver — only offered while the delivery has no driver yet */}
+              {!selected.driverId && !selected.driver && !['delivered', 'cancelled'].includes(selected.status) && (
                 <div className="pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between mb-3">
                     <p className="font-semibold text-gray-700 flex items-center gap-2">
@@ -432,7 +463,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                         type="text"
                         value={driverSearch}
                         onChange={(e) => setDriverSearch(e.target.value)}
-                        placeholder="Search driver by name or phone..."
+                        placeholder="Search driver by name, phone, or plate number..."
                         className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
                       />
                       {loadingDrivers ? (
@@ -451,10 +482,10 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="text-sm font-medium text-gray-900">{driver.name ?? 'Unnamed driver'}</p>
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${DRIVER_STATUS_COLORS[driver.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                                    {driver.status}
+                                    {DRIVER_STATUS_LABELS[driver.status] ?? driver.status}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-500 capitalize">{driver.phone} · {driver.vehicleType ?? '—'} · {driver.company ?? '—'}</p>
+                                <p className="text-xs text-gray-500">{driver.phone} · <span className="capitalize">{driver.vehicleType ?? '—'}</span> · {driver.plateNumber ?? '—'} · {driver.company ?? '—'}</p>
                               </div>
                               <button
                                 onClick={() => handleAssignDriver(selected._id, driver._id)}
