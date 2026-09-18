@@ -32,14 +32,20 @@ const DRIVER_STATUS_LABELS: Record<string, string> = {
 // Different endpoints/response versions have shown customer/driver info under
 // different keys (populated object, flat name field, or a bare id) — check them all.
 function getCustomerName(d: any): string {
-  return d.customer?.name ?? d.customerName ?? '—';
+  return d.customerId?.name ?? d.customer?.name ?? d.customerName ?? '—';
+}
+
+function hasDriverAssigned(d: any): boolean {
+  return d.driverId !== null && d.driverId !== undefined;
 }
 
 function getDriverName(d: any): string {
+  if (d.driverDetails?.name) return d.driverDetails.name;
+  if (d.driverId?.userId?.name) return d.driverId.userId.name;
   if (d.driver?.name) return d.driver.name;
   if (d.driverName) return d.driverName;
-  if (d.driverId && typeof d.driverId === 'object' && d.driverId.name) return d.driverId.name;
-  if (d.driverId) return 'Assigned';
+  if (typeof d.driverId === 'object' && d.driverId?.name) return d.driverId.name;
+  if (hasDriverAssigned(d)) return 'Assigned';
   return 'Unassigned';
 }
 
@@ -144,8 +150,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
       setManualDriverEntry(false);
       setDriverSearch('');
       setAvailableDrivers([]);
-      const hasDriver = !!(delivery.driverId || delivery.driver);
-      if (!hasDriver && !['delivered', 'cancelled'].includes(delivery.status)) {
+      if (!hasDriverAssigned(delivery) && !['delivered', 'cancelled'].includes(delivery.status)) {
         const companyId = delivery.companyId?._id ?? delivery.companyId;
         fetchAssignableDrivers(companyId);
       }
@@ -157,7 +162,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   // Debounce driver-picker search so we don't hit the endpoint on every keystroke.
   useEffect(() => {
     if (!selected || manualDriverEntry || ['delivered', 'cancelled'].includes(selected.status)) return;
-    if (selected.driverId || selected.driver) return;
+    if (hasDriverAssigned(selected)) return;
     const companyId = selected.companyId?._id ?? selected.companyId;
     const t = setTimeout(() => fetchAssignableDrivers(companyId, driverSearch), 300);
     return () => clearTimeout(t);
