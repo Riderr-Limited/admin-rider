@@ -23,7 +23,7 @@ export default function DeleteModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">

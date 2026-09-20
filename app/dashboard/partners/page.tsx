@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Handshake, Search, Eye, XCircle, ChevronLeft, ChevronRight, Plus, Ban, CheckCircle, RefreshCw, Copy, Check } from 'lucide-react';
 import { api } from '@/lib/api';
+import PageHeader from '../PageHeader';
 
 const statusBadge: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
@@ -117,21 +118,23 @@ export default function Partners() {
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">API Partners</h1>
-          <p className="text-gray-600">Manage external partner integrations and API access</p>
-        </div>
-        <button
-          onClick={() => { setShowCreate(true); setCreateError(''); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" /> Add Partner
-        </button>
-      </div>
+      <PageHeader
+        icon={Handshake}
+        title="API Partners"
+        subtitle="Manage external partner integrations and API access"
+        gradient="from-cyan-500 to-blue-600"
+        action={
+          <button
+            onClick={() => { setShowCreate(true); setCreateError(''); }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Add Partner
+          </button>
+        }
+      />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -161,7 +164,7 @@ export default function Partners() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -178,8 +181,8 @@ export default function Partners() {
                       <tr key={id} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                              <Handshake className="w-5 h-5 text-blue-600" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                              <Handshake className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-gray-900">{partner.businessName}</p>
@@ -273,7 +276,7 @@ export default function Partners() {
       {/* Detail Modal */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[80vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{selected.businessName}</h2>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -340,7 +343,7 @@ export default function Partners() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Add Partner</h2>
               <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -433,7 +436,7 @@ export default function Partners() {
       {/* One-time secret modal */}
       {secretModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Partner Credentials</h2>
               <button onClick={() => setSecretModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">

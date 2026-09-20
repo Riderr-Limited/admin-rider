@@ -75,12 +75,13 @@ export default function RiderrDashboard() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="w-64 bg-blue-600 flex flex-col">
-        <div className="p-6">
-          <Image src="/logo.png" alt="RIDERR" width={120} height={40} className="rounded-lg" />
+      <div className="w-64 bg-gradient-to-b from-blue-700 via-blue-700 to-blue-900 flex flex-col shadow-xl">
+        <div className="p-6 border-b border-white/10 flex items-center gap-3">
+          <Image src="/logo.png" alt="" width={40} height={40} className="rounded-xl ring-1 ring-white/20 shadow-sm flex-shrink-0" />
+          <span className="text-white font-bold text-xl tracking-tight">RIDERR</span>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -88,19 +89,20 @@ export default function RiderrDashboard() {
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive ? 'bg-blue-500 text-white' : 'text-white hover:bg-blue-500'
+                className={`relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all ${
+                  isActive ? 'bg-white/15 text-white shadow-sm' : 'text-blue-100 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.name}</span>
+                {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-white" />}
+                <Icon className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.4 : 2} />
+                <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.name}</span>
                 {item.id === 'chat' && chatUnread > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                     {chatUnread > 99 ? '99+' : chatUnread}
                   </span>
                 )}
                 {item.id === 'notifications' && notifUnread > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                     {notifUnread > 99 ? '99+' : notifUnread}
                   </span>
                 )}
@@ -109,53 +111,56 @@ export default function RiderrDashboard() {
           })}
         </nav>
 
-        <div className="p-4 space-y-1">
+        <div className="p-3 space-y-0.5 border-t border-white/10">
           <button
             onClick={() => setCurrentPage('profile')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:bg-blue-500 transition-all ${currentPage === 'profile' ? 'bg-blue-500' : ''}`}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              currentPage === 'profile' ? 'bg-white/15 text-white' : 'text-blue-100 hover:bg-white/10 hover:text-white'
+            }`}
           >
-            <User className="w-5 h-5" />
-            <span className="font-medium">Profile</span>
+            <User className="w-[18px] h-[18px]" />
+            Profile
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-800 text-white hover:bg-blue-700 transition-all"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-100 hover:bg-red-500/20 hover:text-white transition-all"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Logout</span>
+            <LogOut className="w-[18px] h-[18px]" />
+            Logout
           </button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="bg-white border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-end gap-4">
-            <button onClick={() => setCurrentPage('notifications')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-8 py-3.5 flex-shrink-0">
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={() => setCurrentPage('notifications')} className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors relative">
               <Bell className="w-5 h-5 text-gray-600" />
               {notifUnread > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
                   {notifUnread > 9 ? '9+' : notifUnread}
                 </span>
               )}
             </button>
-            <button onClick={() => setCurrentPage('chat')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
+            <button onClick={() => setCurrentPage('chat')} className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors relative">
               <MessageSquare className="w-5 h-5 text-gray-600" />
               {chatUnread > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
                   {chatUnread > 9 ? '9+' : chatUnread}
                 </span>
               )}
             </button>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">{user?.name ?? 'Admin'}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role ?? 'admin'}</p>
-              </div>
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            <button onClick={() => setCurrentPage('profile')} className="flex items-center gap-3 pl-1 pr-3 py-1 rounded-xl hover:bg-gray-100 transition-colors">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm ring-2 ring-white shadow-sm">
                 {user?.name?.[0]?.toUpperCase() ?? 'A'}
               </div>
-            </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900 leading-tight">{user?.name ?? 'Admin'}</p>
+                <p className="text-xs text-gray-500 capitalize leading-tight">{user?.role ?? 'admin'}</p>
+              </div>
+            </button>
           </div>
         </div>
 

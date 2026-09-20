@@ -39,6 +39,7 @@ export default function ChatPage() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const socketRef = useRef<Socket | null>(null);
   const selectedRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -77,22 +78,25 @@ export default function ChatPage() {
     });
     socketRef.current = socket;
 
-    socket.on('new_user_message', ({ data, fromUserId }: any) => {
-      fetchInbox();
-      if (selectedRef.current?.userId === fromUserId) {
-        setMessages(prev => [...prev, data]);
-      }
+    setConnectionStatus('connecting');
+    socket.on('connect', () => setConnectionStatus('connected'));
+    socket.on('disconnect', () => setConnectionStatus('disconnected'));
+    socket.on('connect_error', (err: any) => {
+      console.error('Chat socket connection error:', err?.message ?? err);
+      setConnectionStatus('disconnected');
     });
 
-    socket.on('receive_message', (msg: any) => {
-      if (selectedRef.current?.userId === msg.userId) {
-        setMessages(prev => {
-          if (prev.some(m => m._id === msg._id)) return prev;
-          return [...prev, msg];
-        });
-      }
+    const appendIncoming = (msg: any, fromUserId?: string) => {
       fetchInbox();
-    });
+      if (selectedRef.current?.userId !== (fromUserId ?? msg?.userId)) return;
+      setMessages(prev => {
+        if (msg?._id && prev.some(m => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    socket.on('new_user_message', ({ data, fromUserId }: any) => appendIncoming(data, fromUserId));
+    socket.on('receive_message', (msg: any) => appendIncoming(msg));
 
     socket.on('message_deleted', ({ messageId }: any) => {
       setMessages(prev => prev.filter(m => m._id !== messageId));
@@ -190,6 +194,12 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {connectionStatus === 'disconnected' && (
+          <div className="px-4 py-2 bg-red-50 text-red-700 text-xs font-medium border-b border-red-100">
+            Live connection lost — new messages won't appear until it reconnects.
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
           {inboxLoading ? (
             <div className="flex justify-center py-12">
@@ -213,7 +223,7 @@ export default function ChatPage() {
                   }`}
                 >
                   <div className="relative flex-shrink-0">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-sm">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                       {avatar(user.name)}
                     </div>
                     {item.unreadCount > 0 && (
@@ -254,7 +264,7 @@ export default function ChatPage() {
         ) : (
           <>
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3 flex-shrink-0">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold shadow-sm">
                 {avatar(selected.user?.name)}
               </div>
               <div className="min-w-0">
@@ -266,9 +276,13 @@ export default function ChatPage() {
                   {selected.user?.role}
                 </span>
               </div>
-              <div className="ml-auto flex items-center gap-1.5 text-xs text-green-600 flex-shrink-0">
-                <Circle className="w-2 h-2 fill-green-500" />
-                Live
+              <div className={`ml-auto flex items-center gap-1.5 text-xs flex-shrink-0 ${
+                connectionStatus === 'connected' ? 'text-green-600' : connectionStatus === 'connecting' ? 'text-yellow-600' : 'text-red-500'
+              }`}>
+                <Circle className={`w-2 h-2 ${
+                  connectionStatus === 'connected' ? 'fill-green-500' : connectionStatus === 'connecting' ? 'fill-yellow-500' : 'fill-red-500'
+                }`} />
+                {connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting…' : 'Disconnected'}
               </div>
             </div>
 

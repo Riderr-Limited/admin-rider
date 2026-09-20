@@ -40,8 +40,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm p-8 w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <Image src="/logo.png" alt="RIDERR" width={140} height={48} className="rounded-lg" />
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <Image src="/logo.png" alt="" width={64} height={64} className="rounded-2xl shadow-sm" />
+          <span className="text-gray-900 font-bold text-2xl tracking-tight">RIDERR</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Admin Login</h1>
         <p className="text-gray-500 text-sm text-center mb-8">Sign in to your admin account</p>

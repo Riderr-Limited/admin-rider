@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { MessageSquare, Search, ChevronLeft, ChevronRight, XCircle, Save } from 'lucide-react';
+import { MessageSquare, Search, ChevronLeft, ChevronRight, XCircle, Save, User } from 'lucide-react';
 import { api } from '@/lib/api';
+import PageHeader from '../PageHeader';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-blue-100 text-blue-700',
@@ -30,6 +31,8 @@ export default function SupportTickets() {
   const [updateForm, setUpdateForm] = useState({ status: '', priority: '', response: '', internalNotes: '' });
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateMsg, setUpdateMsg] = useState('');
+  const [ticketMessages, setTicketMessages] = useState<any[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const limit = 15;
 
   const fetchTickets = useCallback(async () => {
@@ -58,6 +61,16 @@ export default function SupportTickets() {
       setSelected(t);
       setUpdateForm({ status: t.status ?? '', priority: t.priority ?? '', response: t.response ?? '', internalNotes: t.internalNotes ?? '' });
       setUpdateMsg('');
+      setTicketMessages([]);
+      setMessagesLoading(true);
+      try {
+        const msgRes = await api.getSupportTicketMessages(id);
+        setTicketMessages(msgRes.data?.messages ?? msgRes.data ?? []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setMessagesLoading(false);
+      }
     } catch (e: any) {
       alert(e.message);
     }
@@ -76,6 +89,11 @@ export default function SupportTickets() {
       await api.updateSupportTicket(selected._id, body);
       setUpdateMsg('Ticket updated successfully!');
       fetchTickets();
+      if (updateForm.response) {
+        api.getSupportTicketMessages(selected._id)
+          .then((msgRes: any) => setTicketMessages(msgRes.data?.messages ?? msgRes.data ?? []))
+          .catch(() => {});
+      }
       setTimeout(() => { setSelected(null); setUpdateMsg(''); }, 1200);
     } catch (e: any) {
       setUpdateMsg(e.message || 'Update failed');
@@ -88,12 +106,9 @@ export default function SupportTickets() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Support Tickets</h1>
-        <p className="text-gray-600">Manage customer and driver support requests</p>
-      </div>
+      <PageHeader icon={MessageSquare} title="Support Tickets" subtitle="Manage customer and driver support requests" gradient="from-yellow-500 to-orange-600" />
 
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -128,7 +143,7 @@ export default function SupportTickets() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -199,7 +214,7 @@ export default function SupportTickets() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">#{selected.ticketId ?? selected._id?.slice(-6)}</h2>
@@ -215,6 +230,43 @@ export default function SupportTickets() {
                 <div className="flex justify-between"><span className="text-gray-500">Issue Type</span><span className="capitalize">{selected.issueType?.replace(/_/g, ' ') ?? '—'}</span></div>
                 {selected.description && <div><p className="text-gray-500 mb-1">Description</p><p className="text-gray-800">{selected.description}</p></div>}
               </div>
+
+              {/* Message thread between the user and support */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" /> Conversation
+                </p>
+                <div className="bg-gray-50 rounded-xl p-3 max-h-64 overflow-y-auto space-y-3">
+                  {messagesLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : ticketMessages.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-4">No messages on this ticket yet.</p>
+                  ) : (
+                    ticketMessages.map((m: any, i: number) => {
+                      const isAdmin = Boolean(m.isAdminMessage ?? m.isFromAdmin ?? m.senderRole === 'admin');
+                      return (
+                        <div key={m._id ?? i} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] flex flex-col gap-1 ${isAdmin ? 'items-end' : 'items-start'}`}>
+                            <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
+                              isAdmin ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-gray-900 shadow-sm border border-gray-100 rounded-bl-sm'
+                            }`}>
+                              {m.message ?? m.text ?? m.response ?? ''}
+                            </div>
+                            <div className="flex items-center gap-1.5 px-1 text-xs text-gray-400">
+                              <User className="w-3 h-3" />
+                              {isAdmin ? 'Support' : (selected.user?.name ?? 'User')}
+                              {m.createdAt && <span>· {new Date(m.createdAt).toLocaleString()}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
               <form onSubmit={handleUpdate} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>

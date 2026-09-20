@@ -1,9 +1,20 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Users, Search, Star, TrendingUp, Package, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Users, Search, Star, TrendingUp, Package, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import DeleteModal from '../DeleteModal';
+import PageHeader from '../PageHeader';
+import Pagination from '../Pagination';
+
+// GET /admin/drivers populates the linked user account under `userId` (name, phone) —
+// fall back to a flat name/phone in case a caller ever returns the driver un-populated.
+function riderName(d: any): string {
+  return d.userId?.name ?? d.name ?? 'Unnamed rider';
+}
+function riderPhone(d: any): string {
+  return d.userId?.phone ?? d.phone ?? '—';
+}
 
 export default function Riders() {
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -27,7 +38,7 @@ export default function Riders() {
       if (isOnline) params.isOnline = isOnline;
       const res = await api.getDrivers(params);
       setDrivers(res.data?.drivers ?? res.data ?? []);
-      setTotal(res.data?.total ?? res.total ?? 0);
+      setTotal(res.data?.total ?? res.pagination?.total ?? res.total ?? 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -67,13 +78,10 @@ export default function Riders() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Riders</h1>
-        <p className="text-gray-600">Manage your delivery riders</p>
-      </div>
+      <PageHeader icon={Users} title="Riders" subtitle="Manage your delivery riders" gradient="from-purple-500 to-purple-700" />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -121,16 +129,16 @@ export default function Riders() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {drivers.map((driver: any) => (
-              <div key={driver._id} className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <div key={driver._id} className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 hover:shadow-md transition-shadow">
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                        {driver.name?.[0] ?? 'D'}
+                        {riderName(driver)[0]?.toUpperCase() ?? 'D'}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{driver.name}</h3>
-                        <p className="text-sm text-gray-500">{driver.phone}</p>
+                        <h3 className="font-semibold text-gray-900">{riderName(driver)}</h3>
+                        <p className="text-sm text-gray-500">{riderPhone(driver)}</p>
                       </div>
                     </div>
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
@@ -208,33 +216,14 @@ export default function Riders() {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-8">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
         </>
       )}
 
       {deleteModal && (
         <DeleteModal
           title="Delete Driver"
-          name={deleteModal.name ?? 'this driver'}
+          name={riderName(deleteModal)}
           softLabel="Deactivate"
           softDesc="Driver goes offline, cannot accept deliveries. Linked user deactivated."
           hardDesc="Removes driver profile permanently. Linked user marked deleted."

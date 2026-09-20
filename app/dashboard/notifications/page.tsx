@@ -5,6 +5,7 @@ import {
   Bell, Send, Trash2, CheckCheck, RefreshCw, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import PageHeader from '../PageHeader';
 
 const TYPE_COLORS: Record<string, string> = {
   delivery: 'bg-blue-100 text-blue-700',
@@ -183,10 +184,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
-        <p className="text-gray-600">View your admin notifications and send bulk messages to users</p>
-      </div>
+      <PageHeader icon={Bell} title="Notifications" subtitle="View your admin notifications and send bulk messages to users" gradient="from-red-500 to-rose-600" />
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
 
@@ -194,7 +192,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
         <div className="xl:col-span-3 flex flex-col gap-4">
 
           {/* Toolbar */}
-          <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 p-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-blue-600" />
               <span className="font-bold text-gray-900">Inbox</span>
@@ -270,7 +268,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
           </div>
 
           {/* List */}
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             {loading ? (
               <div className="flex justify-center py-16">
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -379,7 +377,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
 
         {/* ── Bulk Sender (2/5) ── */}
         <div className="xl:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-6">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 p-6 sticky top-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-blue-100 p-2 rounded-xl">
                 <Send className="w-5 h-5 text-blue-600" />

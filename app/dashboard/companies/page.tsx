@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Building2, Users, Package, Search, Eye, CheckCircle, XCircle, ChevronLeft, ChevronRight, CreditCard, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import DeleteModal from '../DeleteModal';
+import PageHeader from '../PageHeader';
 
 export default function Companies() {
   const [companies, setCompanies] = useState<any[]>([]);
@@ -26,7 +27,7 @@ export default function Companies() {
       if (status) params.status = status;
       const res = await api.getCompanies(params);
       setCompanies(res.data?.companies ?? res.data ?? []);
-      setTotal(res.data?.total ?? res.total ?? 0);
+      setTotal(res.data?.total ?? res.pagination?.total ?? res.total ?? 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -95,13 +96,10 @@ export default function Companies() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Partner Companies</h1>
-        <p className="text-gray-600">Manage your logistics partners</p>
-      </div>
+      <PageHeader icon={Building2} title="Partner Companies" subtitle="Manage your logistics partners" gradient="from-orange-500 to-amber-600" />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -133,7 +131,7 @@ export default function Companies() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -148,8 +146,8 @@ export default function Companies() {
                     <tr key={company._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-blue-600" />
+                          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <Building2 className="w-5 h-5 text-white" />
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{company.name}</p>
@@ -253,7 +251,7 @@ export default function Companies() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[80vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{selected.name}</h2>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">

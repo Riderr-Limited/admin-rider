@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { DollarSign, Search, CheckCircle, Clock, XCircle, ChevronLeft, ChevronRight, RotateCcw, Eye, Download } from 'lucide-react';
 import { api } from '@/lib/api';
+import PageHeader from '../PageHeader';
 
 const STATUS_COLORS: Record<string, string> = {
   successful: 'bg-green-100 text-green-700',
@@ -114,27 +115,25 @@ export default function Payments() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Payments</h1>
-        <p className="text-gray-600">Monitor all transactions and issue refunds</p>
-      </div>
+      <PageHeader icon={DollarSign} title="Payments" subtitle="Monitor all transactions and issue refunds" gradient="from-green-500 to-emerald-600" />
 
       {/* Totals Summary */}
       {totals && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
           {[
-            { label: 'Total Amount', value: totals.totalAmount, color: 'text-blue-600', bg: 'bg-blue-100' },
-            { label: 'Platform Fees', value: totals.totalPlatformFees, color: 'text-purple-600', bg: 'bg-purple-100' },
-            { label: 'Company Revenue', value: totals.totalCompanyRevenue, color: 'text-green-600', bg: 'bg-green-100' },
+            { label: 'Total Amount', value: totals.totalAmount, gradient: 'from-blue-500 to-blue-600' },
+            { label: 'Platform Fees', value: totals.totalPlatformFees, gradient: 'from-purple-500 to-purple-600' },
+            { label: 'Company Revenue', value: totals.totalCompanyRevenue, gradient: 'from-green-500 to-emerald-600' },
           ].map((item) => (
-            <div key={item.label} className="bg-white rounded-2xl shadow-sm p-6">
+            <div key={item.label} className="relative bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 p-6 overflow-hidden">
+              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${item.gradient}`} />
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">{item.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">₦{Number(item.value ?? 0).toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900 tabular-nums">₦{Number(item.value ?? 0).toLocaleString()}</p>
                 </div>
-                <div className={`${item.bg} p-3 rounded-xl`}>
-                  <DollarSign className={`w-6 h-6 ${item.color}`} />
+                <div className={`bg-gradient-to-br ${item.gradient} p-3 rounded-xl shadow-sm`}>
+                  <DollarSign className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
@@ -143,7 +142,7 @@ export default function Payments() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -176,7 +175,7 @@ export default function Payments() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -253,7 +252,7 @@ export default function Payments() {
       {/* Payment Detail Modal */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Payment Details</h2>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -285,7 +284,7 @@ export default function Payments() {
       {/* Refund Modal */}
       {refundModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Issue Refund</h2>
               <button onClick={() => setRefundModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">

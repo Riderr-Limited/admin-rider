@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, Search, MapPin, ChevronLeft, ChevronRight, XCircle, Eye, CheckCircle, Download, UserPlus, Trash2, Handshake } from 'lucide-react';
+import { Package, Search, MapPin, XCircle, Eye, CheckCircle, Download, UserPlus, Trash2, Handshake } from 'lucide-react';
 import { api } from '@/lib/api';
 import DeleteModal from '../DeleteModal';
+import PageHeader from '../PageHeader';
+import Pagination from '../Pagination';
 
 const STATUS_COLORS: Record<string, string> = {
   delivered: 'bg-green-100 text-green-700',
+  in_transit: 'bg-blue-100 text-blue-700',
   picked_up: 'bg-indigo-100 text-indigo-700',
+  driver_assigned: 'bg-purple-100 text-purple-700',
   assigned: 'bg-purple-100 text-purple-700',
+  pending_driver: 'bg-yellow-100 text-yellow-700',
   created: 'bg-gray-100 text-gray-700',
   cancelled: 'bg-red-100 text-red-700',
 };
@@ -67,12 +72,10 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteModal, setDeleteModal] = useState<any | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [assignDriverId, setAssignDriverId] = useState('');
   const [assignMsg, setAssignMsg] = useState('');
   const [exporting, setExporting] = useState(false);
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
-  const [manualDriverEntry, setManualDriverEntry] = useState(false);
   const [driverSearch, setDriverSearch] = useState('');
   const limit = 10;
 
@@ -145,9 +148,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
         return;
       }
       setSelected({ ...delivery, payment: delivery.payment ?? payload.payment });
-      setAssignDriverId('');
       setAssignMsg('');
-      setManualDriverEntry(false);
       setDriverSearch('');
       setAvailableDrivers([]);
       if (!hasDriverAssigned(delivery) && !['delivered', 'cancelled'].includes(delivery.status)) {
@@ -161,7 +162,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
 
   // Debounce driver-picker search so we don't hit the endpoint on every keystroke.
   useEffect(() => {
-    if (!selected || manualDriverEntry || ['delivered', 'cancelled'].includes(selected.status)) return;
+    if (!selected || ['delivered', 'cancelled'].includes(selected.status)) return;
     if (hasDriverAssigned(selected)) return;
     const companyId = selected.companyId?._id ?? selected.companyId;
     const t = setTimeout(() => fetchAssignableDrivers(companyId, driverSearch), 300);
@@ -182,17 +183,14 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
     }
   };
 
-  const handleAssignDriver = async (deliveryId: string, driverId?: string) => {
+  const handleAssignDriver = async (deliveryId: string, driverId: string) => {
     if (!deliveryId) { setAssignMsg('No delivery selected — close and reopen this delivery, then try again.'); return; }
-    const idToAssign = (driverId ?? assignDriverId).trim();
-    if (!idToAssign) { setAssignMsg('Enter a driver ID'); return; }
     setActionLoading(true);
     setAssignMsg('');
     try {
-      const res = await api.assignDriver(deliveryId, idToAssign);
+      const res = await api.assignDriver(deliveryId, driverId);
       const driverName = res.data?.driver?.name;
       setAssignMsg(driverName ? `${driverName} assigned successfully!` : 'Driver assigned successfully!');
-      setAssignDriverId('');
       fetchDeliveries();
       setTimeout(() => { setSelected(null); setAssignMsg(''); }, 1500);
     } catch (e: any) {
@@ -226,13 +224,10 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Deliveries</h1>
-        <p className="text-gray-600">Track and manage all deliveries</p>
-      </div>
+      <PageHeader icon={Package} title="Deliveries" subtitle="Track and manage all deliveries" gradient="from-blue-500 to-blue-600" />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -246,7 +241,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
           </div>
           <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
             <option value="">All Status</option>
-            {['created', 'assigned', 'picked_up', 'delivered', 'cancelled'].map(s => (
+            {['created', 'pending_driver', 'driver_assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'].map(s => (
               <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
             ))}
           </select>
@@ -286,7 +281,7 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
         <>
           <div className="space-y-4">
             {deliveries.map((delivery: any) => (
-              <div key={delivery._id} className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <div key={delivery._id} className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 hover:shadow-md transition-shadow">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -369,24 +364,14 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
             ))}
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-8">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
         </>
       )}
 
       {/* Delivery Detail Modal */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">{selected.trackingNumber ?? selected.referenceId ?? selected._id}</h2>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -431,79 +416,50 @@ export default function Deliveries({ initialDeliveryId, onConsumeInitialDelivery
               </div>
 
               {/* Assign Driver — only offered while the delivery has no driver yet */}
-              {!selected.driverId && !selected.driver && !['delivered', 'cancelled'].includes(selected.status) && (
+              {!hasDriverAssigned(selected) && !['delivered', 'cancelled'].includes(selected.status) && (
                 <div className="pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="font-semibold text-gray-700 flex items-center gap-2">
-                      <UserPlus className="w-4 h-4" /> Assign Driver
-                    </p>
-                    <button
-                      onClick={() => { setManualDriverEntry(v => !v); setAssignDriverId(''); }}
-                      className="text-xs text-blue-600 hover:underline font-medium"
-                    >
-                      {manualDriverEntry ? 'Pick from list' : 'Enter ID manually'}
-                    </button>
-                  </div>
+                  <p className="font-semibold text-gray-700 flex items-center gap-2 mb-3">
+                    <UserPlus className="w-4 h-4" /> Assign Driver
+                  </p>
 
-                  {manualDriverEntry ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={assignDriverId}
-                        onChange={(e) => setAssignDriverId(e.target.value)}
-                        placeholder="Driver Object ID"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 font-mono"
-                      />
-                      <button
-                        onClick={() => handleAssignDriver(selected._id)}
-                        disabled={actionLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
-                      >
-                        Assign
-                      </button>
+                  <input
+                    type="text"
+                    value={driverSearch}
+                    onChange={(e) => setDriverSearch(e.target.value)}
+                    placeholder="Search driver by name, phone, or plate number..."
+                    className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                  {loadingDrivers ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                     </div>
+                  ) : availableDrivers.length === 0 ? (
+                    <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                      No drivers found. Try a different search.
+                    </p>
                   ) : (
-                    <div>
-                      <input
-                        type="text"
-                        value={driverSearch}
-                        onChange={(e) => setDriverSearch(e.target.value)}
-                        placeholder="Search driver by name, phone, or plate number..."
-                        className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
-                      />
-                      {loadingDrivers ? (
-                        <div className="flex justify-center py-4">
-                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                      ) : availableDrivers.length === 0 ? (
-                        <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
-                          No drivers found. Try a different search, or enter a driver ID manually.
-                        </p>
-                      ) : (
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {availableDrivers.map((driver: any) => (
-                            <div key={driver._id} className="flex items-center justify-between gap-3 px-4 py-2.5 border border-gray-200 rounded-xl">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-sm font-medium text-gray-900">{driver.name ?? 'Unnamed driver'}</p>
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${DRIVER_STATUS_COLORS[driver.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                                    {DRIVER_STATUS_LABELS[driver.status] ?? driver.status}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-500">{driver.phone} · <span className="capitalize">{driver.vehicleType ?? '—'}</span> · {driver.plateNumber ?? '—'} · {driver.company ?? '—'}</p>
-                              </div>
-                              <button
-                                onClick={() => handleAssignDriver(selected._id, driver._id)}
-                                disabled={actionLoading || driver.status === 'suspended'}
-                                title={driver.status === 'suspended' ? 'Cannot assign a suspended driver' : undefined}
-                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-                              >
-                                Assign
-                              </button>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {availableDrivers.map((driver: any) => (
+                        <div key={driver._id} className="flex items-center justify-between gap-3 px-4 py-2.5 border border-gray-200 rounded-xl">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium text-gray-900">{driver.name ?? 'Unnamed driver'}</p>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${DRIVER_STATUS_COLORS[driver.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                                {DRIVER_STATUS_LABELS[driver.status] ?? driver.status}
+                              </span>
                             </div>
-                          ))}
+                            <p className="text-xs text-gray-500">{driver.phone} · <span className="capitalize">{driver.vehicleType ?? '—'}</span> · {driver.plateNumber ?? '—'} · {driver.company ?? '—'}</p>
+                          </div>
+                          <button
+                            onClick={() => handleAssignDriver(selected._id, driver._id)}
+                            disabled={actionLoading || driver.status === 'suspended'}
+                            title={driver.status === 'suspended' ? 'Cannot assign a suspended driver' : undefined}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                          >
+                            Assign
+                          </button>
                         </div>
-                      )}
+                      ))}
                     </div>
                   )}
                   {assignMsg && (

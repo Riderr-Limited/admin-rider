@@ -27,43 +27,37 @@ export default function Overview() {
       title: 'TOTAL DELIVERIES',
       value: data?.deliveries?.total ?? 0,
       icon: Package,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
+      gradient: 'from-blue-500 to-blue-600',
     },
     {
       title: 'TOTAL REVENUE',
       value: `₦${((data?.revenue?.totalRevenue ?? 0) / 1000).toFixed(0)}K`,
       icon: DollarSign,
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-600',
+      gradient: 'from-green-500 to-emerald-600',
     },
     {
       title: 'TOTAL DRIVERS',
       value: data?.drivers?.total ?? 0,
       icon: Users,
-      iconBg: 'bg-purple-100',
-      iconColor: 'text-purple-600',
+      gradient: 'from-purple-500 to-purple-600',
     },
     {
       title: 'ONLINE NOW',
       value: data?.drivers?.online ?? 0,
       icon: TrendingUp,
-      iconBg: 'bg-green-100',
-      iconColor: 'text-green-600',
+      gradient: 'from-teal-500 to-green-600',
     },
     {
       title: 'COMPANIES',
       value: data?.companies?.total ?? 0,
       icon: Building2,
-      iconBg: 'bg-orange-100',
-      iconColor: 'text-orange-600',
+      gradient: 'from-orange-500 to-amber-600',
     },
     {
       title: 'TOTAL USERS',
       value: data?.users?.total ?? 0,
       icon: Users,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
+      gradient: 'from-indigo-500 to-blue-600',
     },
   ];
 
@@ -89,7 +83,7 @@ export default function Overview() {
         <select
           value={period}
           onChange={(e) => { setPeriod(e.target.value); setLoading(true); }}
-          className="px-4 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="7days">Last 7 days</option>
           <option value="30days">Last 30 days</option>
@@ -98,18 +92,19 @@ export default function Overview() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div key={index} className="relative bg-white rounded-2xl p-6 shadow-sm ring-1 ring-gray-900/5 hover:shadow-lg hover:-translate-y-0.5 transition-all overflow-hidden">
+              <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient}`} />
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-3xl font-bold text-gray-900 tabular-nums">{stat.value}</p>
                 </div>
-                <div className={`${stat.iconBg} p-3 rounded-xl`}>
-                  <Icon className={`w-6 h-6 ${stat.iconColor}`} />
+                <div className={`bg-gradient-to-br ${stat.gradient} p-3 rounded-xl shadow-sm`}>
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>

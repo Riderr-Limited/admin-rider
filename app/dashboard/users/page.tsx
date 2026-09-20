@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Users, Search, ChevronLeft, ChevronRight, Eye, XCircle,
-  ShieldOff, Shield, Trash2, KeyRound, Save
+  Users, Search, Eye, XCircle,
+  ShieldOff, Shield, Trash2, KeyRound, Save, Building2, Package, UserCog
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import PageHeader from '../PageHeader';
+import Pagination from '../Pagination';
 
 const ROLE_COLORS: Record<string, string> = {
   customer: 'bg-blue-100 text-blue-700',
@@ -148,17 +150,36 @@ export default function UsersPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Users</h1>
-        <p className="text-gray-600">Manage all platform users</p>
-      </div>
+      <PageHeader icon={Users} title="Users" subtitle="Manage all platform users" gradient="from-blue-500 to-indigo-600" />
 
       {actionMsg && (
-        <div className="mb-4 px-4 py-3 bg-green-50 text-green-700 rounded-xl text-sm">{actionMsg}</div>
+        <div className="mb-4 px-4 py-3 bg-green-50 text-green-700 rounded-xl text-sm ring-1 ring-green-600/10">{actionMsg}</div>
       )}
 
+      {/* Type filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {[
+          { value: '', label: 'All Types', icon: Users, color: 'bg-gray-800' },
+          { value: 'customer', label: 'Customers', icon: Users, color: 'bg-blue-600' },
+          { value: 'driver', label: 'Drivers', icon: Package, color: 'bg-purple-600' },
+          { value: 'company_admin', label: 'Companies', icon: Building2, color: 'bg-orange-600' },
+          { value: 'admin', label: 'Admins', icon: UserCog, color: 'bg-red-600' },
+        ].map(({ value, label, icon: TypeIcon, color }) => (
+          <button
+            key={value}
+            onClick={() => { setRole(value); setPage(1); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              role === value ? `${color} text-white shadow-sm` : 'bg-white text-gray-600 ring-1 ring-gray-900/5 hover:bg-gray-50'
+            }`}
+          >
+            <TypeIcon className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm mb-6 p-6">
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -170,13 +191,6 @@ export default function UsersPage() {
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <select value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
-            <option value="">All Roles</option>
-            <option value="customer">Customer</option>
-            <option value="driver">Driver</option>
-            <option value="company_admin">Company Admin</option>
-            <option value="admin">Admin</option>
-          </select>
           <select value={isVerified} onChange={(e) => { setIsVerified(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
             <option value="">All Verified</option>
             <option value="true">Verified</option>
@@ -196,7 +210,7 @@ export default function UsersPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -211,7 +225,7 @@ export default function UsersPage() {
                     <tr key={user._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-sm">
+                          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                             {user.name?.[0]?.toUpperCase() ?? '?'}
                           </div>
                           <div>
@@ -275,24 +289,14 @@ export default function UsersPage() {
             )}
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-8">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages} · {total} total</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
         </>
       )}
 
       {/* Detail Modal */}
       {detailUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[85vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">User Details</h2>
               <button onClick={() => setDetailUser(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -339,7 +343,7 @@ export default function UsersPage() {
       {/* Edit Modal */}
       {editModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Edit User</h2>
               <button onClick={() => setEditModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -389,7 +393,7 @@ export default function UsersPage() {
       {/* Suspend Modal */}
       {suspendModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">
                 {suspendModal.isActive ? 'Suspend User' : 'Unsuspend User'}
@@ -434,7 +438,7 @@ export default function UsersPage() {
       {/* Delete Modal */}
       {deleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Delete User</h2>
               <button onClick={() => setDeleteModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -470,7 +474,7 @@ export default function UsersPage() {
       {/* Reset Password Modal */}
       {resetModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Reset Password</h2>
               <button onClick={() => setResetModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
