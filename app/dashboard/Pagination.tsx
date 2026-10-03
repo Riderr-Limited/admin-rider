@@ -11,7 +11,7 @@ interface PaginationProps {
 }
 
 function getPageNumbers(page: number, totalPages: number): (number | '…')[] {
-  const pages: (number | '…')[] = [];
+  const pages: number[] = [];
   const add = (p: number) => { if (!pages.includes(p)) pages.push(p); };
 
   add(1);
@@ -22,52 +22,62 @@ function getPageNumbers(page: number, totalPages: number): (number | '…')[] {
 
   const result: (number | '…')[] = [];
   let prev = 0;
-  for (const p of pages.sort((a, b) => (a as number) - (b as number))) {
-    if (prev && (p as number) - prev > 1) result.push('…');
+  for (const p of pages.sort((a, b) => a - b)) {
+    if (prev && p - prev > 1) result.push('…');
     result.push(p);
-    prev = p as number;
+    prev = p;
   }
   return result;
 }
 
 export default function Pagination({ page, totalPages, total, onChange }: PaginationProps) {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1) {
+    return total != null && total > 0
+      ? <p className="text-center text-xs text-gray-400 mt-5">{total.toLocaleString()} total</p>
+      : null;
+  }
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6">
       {total != null && (
-        <span className="text-sm text-gray-500">{total.toLocaleString()} total</span>
+        <span className="text-sm text-gray-500">{total.toLocaleString()} total · page {page} of {totalPages}</span>
       )}
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => onChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          aria-label="Previous page"
+          className="p-2 rounded-xl bg-white ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-40 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        {pageNumbers.map((p, i) =>
-          p === '…' ? (
-            <span key={`ellipsis-${i}`} className="px-2 text-sm text-gray-400">…</span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onChange(p)}
-              className={`min-w-[2.25rem] h-9 px-2 rounded-xl text-sm font-medium transition-colors ${
-                p === page ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {p}
-            </button>
-          )
-        )}
+        {/* Page numbers are hidden on very narrow screens; prev/next is enough there */}
+        <div className="hidden min-[400px]:flex items-center gap-1.5">
+          {pageNumbers.map((p, i) =>
+            p === '…' ? (
+              <span key={`ellipsis-${i}`} className="px-1 text-sm text-gray-400">…</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => onChange(p)}
+                className={`min-w-[2.25rem] h-9 px-2 rounded-xl text-sm font-medium transition-colors ${
+                  p === page ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 ring-1 ring-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+        </div>
+        <span className="min-[400px]:hidden text-sm text-gray-600 px-2">{page} / {totalPages}</span>
 
         <button
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          aria-label="Next page"
+          className="p-2 rounded-xl bg-white ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-40 transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>

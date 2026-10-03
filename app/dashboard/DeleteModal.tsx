@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2, AlertTriangle, XCircle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { Modal, Field, inputCls, btnSecondary } from './ui';
 
 interface DeleteModalProps {
   title: string;
@@ -20,83 +21,57 @@ export default function DeleteModal({
   requireReason = false, loading, onClose, onConfirm,
 }: DeleteModalProps) {
   const [reason, setReason] = useState('');
+  const [confirmHard, setConfirmHard] = useState(false);
+  const blocked = loading || (requireReason && !reason.trim());
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-md">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">
-              <Trash2 className="w-4 h-4 text-red-600" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <XCircle className="w-5 h-5 text-gray-400" />
+    <Modal title={title} onClose={onClose} size="sm" footer={<button onClick={onClose} className={`${btnSecondary} w-full`}>Cancel</button>}>
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Choose how to remove <span className="font-semibold text-gray-900">&ldquo;{name}&rdquo;</span>:
+        </p>
+
+        {requireReason && (
+          <Field label="Reason *">
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. Fraudulent order detected"
+              className={`${inputCls} resize-none`}
+            />
+          </Field>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            onClick={() => onConfirm(false, reason || undefined)}
+            disabled={blocked}
+            className="flex flex-col items-start gap-1 p-4 bg-orange-50 ring-2 ring-orange-200 rounded-xl hover:ring-orange-400 transition-all disabled:opacity-50 text-left"
+          >
+            <span className="text-sm font-bold text-orange-700">{softLabel}</span>
+            <span className="text-xs text-orange-600 leading-snug">{softDesc ?? 'Can be reversed later'}</span>
           </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-gray-600">
-            Choose how to delete <span className="font-semibold text-gray-900">"{name}"</span>:
-          </p>
-
-          {requireReason && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                rows={2}
-                placeholder="e.g. Fraudulent order detected"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none text-sm"
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* Soft delete */}
-            <button
-              onClick={() => onConfirm(false, reason || undefined)}
-              disabled={loading || (requireReason && !reason.trim())}
-              className="flex flex-col items-start gap-1.5 p-4 bg-orange-50 border-2 border-orange-200 rounded-xl hover:bg-orange-100 hover:border-orange-400 transition-all disabled:opacity-50 text-left"
-            >
-              <span className="text-sm font-bold text-orange-700">{softLabel}</span>
-              <span className="text-xs text-orange-600 leading-snug">
-                {softDesc ?? 'Can be reversed later'}
-              </span>
-            </button>
-
-            {/* Permanent delete */}
-            <button
-              onClick={() => onConfirm(true, reason || undefined)}
-              disabled={loading || (requireReason && !reason.trim())}
-              className="flex flex-col items-start gap-1.5 p-4 bg-red-50 border-2 border-red-200 rounded-xl hover:bg-red-100 hover:border-red-400 transition-all disabled:opacity-50 text-left"
-            >
-              <span className="text-sm font-bold text-red-700">Permanent Delete</span>
-              <span className="text-xs text-red-600 leading-snug">
-                {hardDesc ?? 'Cannot be undone'}
-              </span>
-            </button>
-          </div>
-
-          <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-            <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-yellow-700">
-              Permanent delete removes all data and cannot be recovered.
-            </p>
-          </div>
 
           <button
-            onClick={onClose}
-            className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium"
+            onClick={() => confirmHard ? onConfirm(true, reason || undefined) : setConfirmHard(true)}
+            disabled={blocked}
+            className={`flex flex-col items-start gap-1 p-4 rounded-xl ring-2 transition-all disabled:opacity-50 text-left ${
+              confirmHard ? 'bg-red-600 ring-red-600 text-white' : 'bg-red-50 ring-red-200 hover:ring-red-400'
+            }`}
           >
-            Cancel
+            <span className={`text-sm font-bold ${confirmHard ? 'text-white' : 'text-red-700'}`}>
+              {confirmHard ? 'Tap again to confirm' : 'Permanent Delete'}
+            </span>
+            <span className={`text-xs leading-snug ${confirmHard ? 'text-red-100' : 'text-red-600'}`}>{hardDesc ?? 'Cannot be undone'}</span>
           </button>
         </div>
+
+        <div className="flex items-start gap-2 bg-amber-50 ring-1 ring-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700">Permanent delete removes the record and cannot be recovered.</p>
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

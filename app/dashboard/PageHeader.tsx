@@ -12,17 +12,17 @@ interface PageHeaderProps {
 
 export default function PageHeader({ icon: Icon, title, subtitle, gradient = 'from-blue-500 to-blue-600', action }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
-      <div className="flex items-center gap-4">
-        <div className={`bg-gradient-to-br ${gradient} p-3 rounded-2xl shadow-sm flex-shrink-0`}>
-          <Icon className="w-6 h-6 text-white" />
+    <div className="mb-5 sm:mb-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <div className={`bg-gradient-to-br ${gradient} p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-sm flex-shrink-0`}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">{title}</h1>
-          <p className="text-gray-600">{subtitle}</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight">{title}</h1>
+          <p className="text-sm text-gray-500 truncate">{subtitle}</p>
         </div>
       </div>
-      {action}
+      {action && <div className="flex flex-wrap gap-2">{action}</div>}
     </div>
   );
 }

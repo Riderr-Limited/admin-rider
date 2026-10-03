@@ -37,24 +37,24 @@ export default function Profile() {
   };
 
   if (loading) return (
-    <div className="p-8 flex justify-center">
+    <div className="p-4 sm:p-8 flex justify-center">
       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  if (!profile) return <div className="p-8 text-gray-500">Failed to load profile.</div>;
+  if (!profile) return <div className="p-4 sm:p-8 text-gray-500">Failed to load profile.</div>;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile</h1>
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1">Profile</h1>
         <p className="text-gray-600">Your admin account information</p>
       </div>
 
       <div className="max-w-2xl space-y-6">
         {/* Profile Card */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          <div className="flex items-center gap-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm p-5 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-6">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
               {profile.name?.[0]?.toUpperCase() ?? 'A'}
             </div>
@@ -98,7 +98,7 @@ export default function Profile() {
         </div>
 
         {/* Change Password */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-5 sm:p-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Lock className="w-5 h-5 text-gray-600" />

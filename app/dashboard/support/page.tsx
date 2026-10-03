@@ -1,315 +1,271 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { MessageSquare, Search, ChevronLeft, ChevronRight, XCircle, Save, User } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { LifeBuoy, Send, Save, UserCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import PageHeader from '../PageHeader';
+import Pagination from '../Pagination';
+import {
+  Badge, Card, EmptyState, LoadingBlock, Modal, InfoGrid, Section, Notice, Tabs, Field, FilterBar, SearchInput,
+  selectCls, inputCls, btnPrimary, btnSecondary, fmtDate, fmtDateTime, humanize, useDebounced,
+} from '../ui';
 
-const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  in_progress: 'bg-yellow-100 text-yellow-700',
-  resolved: 'bg-green-100 text-green-700',
-  closed: 'bg-gray-100 text-gray-700',
-};
+// Values from the SupportTicket model
+const STATUSES = ['open', 'in-progress', 'resolved'];
+const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+const ISSUE_TYPES = ['payment issues', 'delivery problems', 'app technical issues', 'account problems', 'safety concerns', 'other'];
+const PRIORITY_TONE: Record<string, string> = { low: 'gray', medium: 'blue', high: 'orange', urgent: 'red' };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-blue-100 text-blue-700',
-  high: 'bg-orange-100 text-orange-700',
-  urgent: 'bg-red-100 text-red-700',
-};
+function adminId(): string | null {
+  try { const u = JSON.parse(localStorage.getItem('user') ?? 'null'); return u?._id ?? u?.id ?? null; } catch { return null; }
+}
 
 export default function SupportTickets() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
   const [status, setStatus] = useState('');
   const [priority, setPriority] = useState('');
+  const [issueType, setIssueType] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [selected, setSelected] = useState<any | null>(null);
-  const [updateForm, setUpdateForm] = useState({ status: '', priority: '', response: '', internalNotes: '' });
-  const [updateLoading, setUpdateLoading] = useState(false);
-  const [updateMsg, setUpdateMsg] = useState('');
-  const [ticketMessages, setTicketMessages] = useState<any[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const limit = 15;
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { page: String(page), limit: String(limit) };
-      if (status) params.status = status;
-      if (priority) params.priority = priority;
-      if (search) params.search = search;
-      const res = await api.getSupportTickets(params);
-      setTickets(res.data?.tickets ?? res.data ?? []);
-      setTotal(res.data?.total ?? res.pagination?.total ?? 0);
-    } catch (e) {
-      console.error(e);
+      const res = await api.getSupportTickets({ page, limit, status, priority, issueType, search: debouncedSearch });
+      setTickets(res.data ?? []);
+      setTotal(res.pagination?.total ?? 0);
+      setTotalPages(res.pagination?.pages ?? 1);
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [page, status, priority, search]);
+  }, [page, status, priority, issueType, debouncedSearch]);
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
-
-  const openTicket = async (id: string) => {
-    try {
-      const res = await api.getSupportTicketById(id);
-      const t = res.data ?? res;
-      setSelected(t);
-      setUpdateForm({ status: t.status ?? '', priority: t.priority ?? '', response: t.response ?? '', internalNotes: t.internalNotes ?? '' });
-      setUpdateMsg('');
-      setTicketMessages([]);
-      setMessagesLoading(true);
-      try {
-        const msgRes = await api.getSupportTicketMessages(id);
-        setTicketMessages(msgRes.data?.messages ?? msgRes.data ?? []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setMessagesLoading(false);
-      }
-    } catch (e: any) {
-      alert(e.message);
-    }
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdateLoading(true);
-    setUpdateMsg('');
-    try {
-      const body: Record<string, string> = {};
-      if (updateForm.status) body.status = updateForm.status;
-      if (updateForm.priority) body.priority = updateForm.priority;
-      if (updateForm.response) body.response = updateForm.response;
-      if (updateForm.internalNotes) body.internalNotes = updateForm.internalNotes;
-      await api.updateSupportTicket(selected._id, body);
-      setUpdateMsg('Ticket updated successfully!');
-      fetchTickets();
-      if (updateForm.response) {
-        api.getSupportTicketMessages(selected._id)
-          .then((msgRes: any) => setTicketMessages(msgRes.data?.messages ?? msgRes.data ?? []))
-          .catch(() => {});
-      }
-      setTimeout(() => { setSelected(null); setUpdateMsg(''); }, 1200);
-    } catch (e: any) {
-      setUpdateMsg(e.message || 'Update failed');
-    } finally {
-      setUpdateLoading(false);
-    }
-  };
-
-  const totalPages = Math.ceil(total / limit);
+  useEffect(() => { setPage(1); }, [status, priority, issueType, debouncedSearch]);
 
   return (
-    <div className="p-8">
-      <PageHeader icon={MessageSquare} title="Support Tickets" subtitle="Manage customer and driver support requests" gradient="from-yellow-500 to-orange-600" />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+      <PageHeader icon={LifeBuoy} title="Support Tickets" subtitle="Customer, rider and company support requests" gradient="from-amber-500 to-orange-600" />
 
-      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 mb-6 p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search by ticket ID, title, description..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
-            <option value="">All Status</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="resolved">Resolved</option>
-            <option value="closed">Closed</option>
+      {error && <div className="mb-4"><Notice tone="red" onClose={() => setError('')}>{error}</Notice></div>}
+
+      <Tabs tabs={[{ id: '', label: 'All' }, ...STATUSES.map(s => ({ id: s, label: humanize(s) }))]} value={status} onChange={setStatus} />
+
+      <FilterBar>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search ticket ID, title or description…" />
+        <div className="grid grid-cols-2 sm:flex gap-3">
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} className={selectCls}>
+            <option value="">Any priority</option>
+            {PRIORITIES.map(p => <option key={p} value={p}>{humanize(p)}</option>)}
           </select>
-          <select value={priority} onChange={(e) => { setPriority(e.target.value); setPage(1); }} className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500">
-            <option value="">All Priority</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
+          <select value={issueType} onChange={(e) => setIssueType(e.target.value)} className={selectCls}>
+            <option value="">Any issue type</option>
+            {ISSUE_TYPES.map(t => <option key={t} value={t}>{humanize(t)}</option>)}
           </select>
         </div>
-      </div>
+      </FilterBar>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
+      {loading ? <LoadingBlock /> : tickets.length === 0 ? <EmptyState icon={LifeBuoy} text="No support tickets" /> : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {['Ticket', 'User', 'Issue Type', 'Priority', 'Status', 'Date', 'Action'].map(h => (
-                      <th key={h} className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {tickets.map((ticket: any) => (
-                    <tr key={ticket._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-semibold text-blue-600">#{ticket.ticketId ?? ticket._id?.slice(-6)}</p>
-                        <p className="text-xs text-gray-700 mt-0.5 max-w-[180px] truncate">{ticket.title ?? ticket.subject ?? '—'}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{ticket.user?.name ?? ticket.userId ?? '—'}</p>
-                        <p className="text-xs text-gray-500">{ticket.user?.role ?? ''}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-gray-700 capitalize">{ticket.issueType?.replace(/_/g, ' ') ?? '—'}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${PRIORITY_COLORS[ticket.priority] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {ticket.priority ?? '—'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[ticket.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {ticket.status?.replace(/_/g, ' ') ?? '—'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <button onClick={() => openTicket(ticket._id)} className="px-3 py-1.5 text-xs font-medium border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-                          Manage
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {tickets.length === 0 && (
-              <div className="text-center py-12">
-                <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No support tickets found</p>
-              </div>
-            )}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-8">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronLeft className="w-5 h-5" />
+          <Card className="divide-y divide-gray-100 overflow-hidden">
+            {tickets.map((t) => (
+              <button key={t._id} onClick={() => setSelectedId(t._id)} className="w-full text-left px-4 sm:px-5 py-3.5 hover:bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono font-semibold text-blue-700">#{t.ticketId ?? t._id.slice(-6)}</span>
+                    <Badge tone={PRIORITY_TONE[t.priority]}>{humanize(t.priority)}</Badge>
+                    {t.messages?.length > 0 && <span className="text-xs text-gray-400">{t.messages.length} msg</span>}
+                  </div>
+                  <p className="font-semibold text-gray-900 truncate mt-0.5">{t.title}</p>
+                  <p className="text-xs text-gray-500 truncate">{t.user?.name ?? 'User'} · {humanize(t.user?.role)} · {humanize(t.issueType)} · {fmtDate(t.createdAt)}</p>
+                </div>
+                <Badge status={t.status} />
               </button>
-              <span className="text-sm text-gray-600">Page {page} of {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-xl border border-gray-300 hover:bg-gray-50 disabled:opacity-40">
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+            ))}
+          </Card>
+          <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
         </>
       )}
 
-      {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">#{selected.ticketId ?? selected._id?.slice(-6)}</h2>
-                <p className="text-sm text-gray-500">{selected.title ?? selected.subject}</p>
-              </div>
-              <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <XCircle className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-2">
-                <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selected.user?.name ?? '—'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Issue Type</span><span className="capitalize">{selected.issueType?.replace(/_/g, ' ') ?? '—'}</span></div>
-                {selected.description && <div><p className="text-gray-500 mb-1">Description</p><p className="text-gray-800">{selected.description}</p></div>}
-              </div>
+      {selectedId && <TicketModal id={selectedId} onClose={() => setSelectedId(null)} onChanged={fetchTickets} />}
+    </div>
+  );
+}
 
-              {/* Message thread between the user and support */}
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> Conversation
-                </p>
-                <div className="bg-gray-50 rounded-xl p-3 max-h-64 overflow-y-auto space-y-3">
-                  {messagesLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : ticketMessages.length === 0 ? (
-                    <p className="text-xs text-gray-500 text-center py-4">No messages on this ticket yet.</p>
-                  ) : (
-                    ticketMessages.map((m: any, i: number) => {
-                      const isAdmin = Boolean(m.isAdminMessage ?? m.isFromAdmin ?? m.senderRole === 'admin');
-                      return (
-                        <div key={m._id ?? i} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] flex flex-col gap-1 ${isAdmin ? 'items-end' : 'items-start'}`}>
-                            <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
-                              isAdmin ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-gray-900 shadow-sm border border-gray-100 rounded-bl-sm'
-                            }`}>
-                              {m.message ?? m.text ?? m.response ?? ''}
-                            </div>
-                            <div className="flex items-center gap-1.5 px-1 text-xs text-gray-400">
-                              <User className="w-3 h-3" />
-                              {isAdmin ? 'Support' : (selected.user?.name ?? 'User')}
-                              {m.createdAt && <span>· {new Date(m.createdAt).toLocaleString()}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+function TicketModal({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+  const [ticket, setTicket] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({ status: '', priority: '', internalNotes: '' });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'green' | 'red'; text: string } | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const me = adminId();
 
-              <form onSubmit={handleUpdate} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
-                    <select value={updateForm.status} onChange={(e) => setUpdateForm({ ...updateForm, status: e.target.value })} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
-                      <option value="">No change</option>
-                      <option value="open">Open</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="closed">Closed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Priority</label>
-                    <select value={updateForm.priority} onChange={(e) => setUpdateForm({ ...updateForm, priority: e.target.value })} className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm">
-                      <option value="">No change</option>
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Response to User</label>
-                  <textarea value={updateForm.response} onChange={(e) => setUpdateForm({ ...updateForm, response: e.target.value })} rows={3} placeholder="Write a response visible to the user..." className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Internal Notes</label>
-                  <textarea value={updateForm.internalNotes} onChange={(e) => setUpdateForm({ ...updateForm, internalNotes: e.target.value })} rows={2} placeholder="Internal notes (not visible to user)..." className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none text-sm" />
-                </div>
-                {updateMsg && (
-                  <div className={`px-4 py-3 rounded-xl text-sm ${updateMsg.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{updateMsg}</div>
-                )}
-                <button type="submit" disabled={updateLoading} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-60">
-                  <Save className="w-4 h-4" />
-                  {updateLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </form>
-            </div>
+  const load = useCallback(async () => {
+    try {
+      const [t, m] = await Promise.all([api.getSupportTicketById(id), api.getSupportTicketMessages(id).catch(() => null)]);
+      setTicket(t.data);
+      setForm({ status: t.data.status ?? 'open', priority: t.data.priority ?? 'medium', internalNotes: t.data.internalNotes ?? '' });
+      setMessages(m?.data ?? t.data.messages ?? []);
+    } catch (e: any) {
+      setMsg({ tone: 'red', text: e.message });
+    }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'end' }); }, [messages.length]);
+
+  const sendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reply.trim()) return;
+    setSending(true);
+    try {
+      const res = await api.sendSupportTicketMessage(id, reply.trim());
+      setMessages(prev => [...prev, { ...res.data, senderRole: 'admin' }]);
+      setReply('');
+      // Move a fresh ticket into progress once support has replied.
+      if (ticket?.status === 'open') {
+        await api.updateSupportTicket(id, { status: 'in-progress' }).catch(() => {});
+        setForm(f => ({ ...f, status: 'in-progress' }));
+      }
+      onChanged();
+    } catch (e: any) {
+      setMsg({ tone: 'red', text: e.message });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const save = async (extra: Record<string, any> = {}) => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const body: Record<string, any> = { ...extra };
+      if (form.status !== ticket.status) body.status = form.status;
+      if (form.priority !== ticket.priority) body.priority = form.priority;
+      if (form.internalNotes !== (ticket.internalNotes ?? '')) body.internalNotes = form.internalNotes;
+      if (!Object.keys(body).length) { setMsg({ tone: 'green', text: 'Nothing to save' }); return; }
+      const res = await api.updateSupportTicket(id, body);
+      setTicket((t: any) => ({ ...t, ...res.data }));
+      setMsg({ tone: 'green', text: 'Ticket updated' });
+      onChanged();
+    } catch (e: any) {
+      setMsg({ tone: 'red', text: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!ticket) return <Modal title="Loading ticket…" onClose={onClose} size="lg">{msg ? <Notice tone="red">{msg.text}</Notice> : <LoadingBlock />}</Modal>;
+
+  const assignedToMe = me && (ticket.assignedTo?._id ?? ticket.assignedTo) === me;
+
+  return (
+    <Modal
+      title={ticket.title}
+      subtitle={<span className="flex flex-wrap items-center gap-1.5 mt-1"><span className="font-mono text-xs">#{ticket.ticketId}</span><Badge status={ticket.status} /><Badge tone={PRIORITY_TONE[ticket.priority]}>{humanize(ticket.priority)}</Badge></span>}
+      size="xl"
+      onClose={onClose}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 flex flex-col min-w-0">
+          <div className="bg-gray-50 rounded-xl p-4 text-sm mb-3">
+            <p className="text-xs text-gray-500 mb-1">{ticket.user?.name ?? 'User'} wrote · {fmtDateTime(ticket.createdAt)}</p>
+            <p className="text-gray-800 whitespace-pre-wrap">{ticket.description}</p>
           </div>
+
+          <div className="space-y-3 max-h-[40vh] lg:max-h-[50vh] overflow-y-auto pr-1">
+            {ticket.response && !messages.some(m => m.message === ticket.response) && (
+              <Bubble mine text={ticket.response} meta={`Official response · ${fmtDateTime(ticket.respondedAt)}`} />
+            )}
+            {messages.length === 0 && !ticket.response && <p className="text-xs text-gray-500 text-center py-4">No replies yet.</p>}
+            {messages.map((m, i) => {
+              const fromAdmin = m.senderRole === 'admin' || m.senderId?.role === 'admin';
+              return <Bubble key={m._id ?? i} mine={fromAdmin} text={m.message} meta={`${fromAdmin ? (m.senderId?.name ?? 'Support') : (m.senderId?.name ?? ticket.user?.name ?? 'User')} · ${fmtDateTime(m.createdAt)}`} />;
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          <form onSubmit={sendReply} className="mt-3 flex gap-2 items-end">
+            <textarea
+              value={reply}
+              onChange={e => setReply(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply(e); }}
+              rows={2}
+              maxLength={2000}
+              placeholder={`Reply to ${ticket.user?.name ?? 'user'}… (they get a notification)`}
+              className={`${inputCls} resize-none`}
+            />
+            <button type="submit" disabled={sending || !reply.trim()} className={`${btnPrimary} !px-3`} aria-label="Send reply"><Send className="w-4 h-4" /></button>
+          </form>
         </div>
-      )}
+
+        <div className="lg:col-span-2 space-y-4">
+          <Section title="Requester">
+            <InfoGrid items={[
+              ['Name', ticket.user?.name ?? '—'],
+              ['Role', humanize(ticket.user?.role)],
+              ['Email', ticket.user?.email ?? '—'],
+              ['Phone', ticket.user?.phone ?? '—'],
+              ['Issue type', humanize(ticket.issueType)],
+              ['Resolved', fmtDateTime(ticket.resolvedAt)],
+            ]} />
+          </Section>
+
+          <Section
+            title="Manage"
+            action={!assignedToMe && me && <button onClick={() => save({ assignedTo: me })} disabled={saving} className="text-xs font-semibold text-blue-600 inline-flex items-center gap-1"><UserCheck className="w-3.5 h-3.5" /> Assign to me</button>}
+          >
+            <div className="space-y-3">
+              {ticket.assignedTo && <p className="text-xs text-gray-500">Assigned to {assignedToMe ? 'you' : (ticket.assignedTo?.name ?? 'another admin')}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Status">
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className={inputCls}>
+                    {STATUSES.map(s => <option key={s} value={s}>{humanize(s)}</option>)}
+                  </select>
+                </Field>
+                <Field label="Priority">
+                  <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className={inputCls}>
+                    {PRIORITIES.map(p => <option key={p} value={p}>{humanize(p)}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Internal notes" hint="Only visible to admins">
+                <textarea value={form.internalNotes} onChange={e => setForm({ ...form, internalNotes: e.target.value })} rows={3} className={`${inputCls} resize-none`} />
+              </Field>
+              {msg && <Notice tone={msg.tone} onClose={() => setMsg(null)}>{msg.text}</Notice>}
+              <div className="flex gap-2">
+                <button onClick={() => save()} disabled={saving} className={`${btnPrimary} flex-1`}><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save'}</button>
+                {ticket.status !== 'resolved' && (
+                  <button onClick={() => { setForm(f => ({ ...f, status: 'resolved' })); save({ status: 'resolved' }); }} disabled={saving} className={`${btnSecondary} flex-1 !text-emerald-700`}>Resolve</button>
+                )}
+              </div>
+            </div>
+          </Section>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Bubble({ mine, text, meta }: { mine: boolean; text: string; meta: string }) {
+  return (
+    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[85%] flex flex-col gap-1 ${mine ? 'items-end' : 'items-start'}`}>
+        <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${mine ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-gray-900 ring-1 ring-gray-200 rounded-bl-sm'}`}>{text}</div>
+        <span className="text-[11px] text-gray-400 px-1">{meta}</span>
+      </div>
     </div>
   );
 }

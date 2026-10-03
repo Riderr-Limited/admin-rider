@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import PageHeader from '../PageHeader';
+import { fmtDateTime } from '../ui';
 
 const TYPE_COLORS: Record<string, string> = {
   delivery: 'bg-blue-100 text-blue-700',
@@ -51,7 +52,7 @@ const PRIORITY_DOT: Record<string, string> = {
 
 const NOTIF_TYPES = [
   'announcement', 'system', 'delivery', 'payment',
-  'security', 'promotion', 'order', 'support', 'driver', 'company', 'partner',
+  'security', 'promotion', 'order', 'support', 'driver', 'company', 'call',
 ];
 
 interface NavigateMeta { deliveryId?: string }
@@ -160,6 +161,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.target === 'all' && !confirm('Send this notification to EVERY active user on the platform?')) return;
     setSending(true);
     setSendResult(null);
     try {
@@ -183,10 +185,10 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
       <PageHeader icon={Bell} title="Notifications" subtitle="View your admin notifications and send bulk messages to users" gradient="from-red-500 to-rose-600" />
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 lg:gap-8">
 
         {/* ── Inbox (3/5) ── */}
         <div className="xl:col-span-3 flex flex-col gap-4">
@@ -303,7 +305,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
                         <p className={`text-sm ${!n.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'} leading-snug`}>
                           {n.title}
                         </p>
-                        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{n.timeAgo}</span>
+                        <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{n.timeAgo ?? fmtDateTime(n.createdAt)}</span>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -377,7 +379,7 @@ export default function NotificationsPage({ onNavigate, onUnreadCountChange }: {
 
         {/* ── Bulk Sender (2/5) ── */}
         <div className="xl:col-span-2">
-          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 p-6 sticky top-6">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 p-6 xl:sticky xl:top-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-blue-100 p-2 rounded-xl">
                 <Send className="w-5 h-5 text-blue-600" />
